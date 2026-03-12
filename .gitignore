@@ -1,0 +1,6 @@
+# Build output
+genmark
+
+# Go toolchain
+*.test
+*.out
