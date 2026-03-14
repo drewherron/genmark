@@ -89,10 +89,12 @@ type Divorce struct {
 
 // ParentRef is a parents: declaration on a person, pointing up to
 // two parents and carrying an optional relationship modifier.
+// If PlainText is set, the parents are not linked records.
 type ParentRef struct {
-	IDs      []string // one or two parent IDs
-	Modifier ChildModifier
-	Line     int
+	IDs       []string // one or two parent IDs (when using [id] references)
+	PlainText string   // raw text for unlinked parents at tree edges
+	Modifier  ChildModifier
+	Line      int
 }
 
 // MaybeLink is a speculative relationship (maybe: brother [id]).
@@ -154,7 +156,8 @@ type Source struct {
 
 // File is the top-level result of parsing a .gmd file.
 type File struct {
-	Sources []Source
-	People  []Person
-	Unions  []Union
+	Filename string
+	Sources  []Source
+	People   []Person
+	Unions   []Union
 }
