@@ -11,16 +11,15 @@ import (
 var outputFile string
 
 var compileCmd = &cobra.Command{
-	Use:   "compile <input.gmd>",
-	Short: "Compile a .gmd file to GEDCOM 5.5.1",
-	Args:  cobra.ExactArgs(1),
+	Use:   "compile <input.gmd> [input2.gmd ...]",
+	Short: "Compile one or more .gmd files to GEDCOM 5.5.1",
+	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		input := args[0]
 		if outputFile == "" {
-			base := strings.TrimSuffix(filepath.Base(input), filepath.Ext(input))
-			outputFile = filepath.Join(filepath.Dir(input), base+".ged")
+			base := strings.TrimSuffix(filepath.Base(args[0]), filepath.Ext(args[0]))
+			outputFile = filepath.Join(filepath.Dir(args[0]), base+".ged")
 		}
-		fmt.Printf("compile: %s -> %s (not yet implemented)\n", input, outputFile)
+		fmt.Printf("compile: %v -> %s (not yet implemented)\n", args, outputFile)
 		return nil
 	},
 }

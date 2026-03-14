@@ -7,11 +7,11 @@ import (
 )
 
 var checkCmd = &cobra.Command{
-	Use:   "check <input.gmd>",
-	Short: "Validate a .gmd file without compiling",
-	Args:  cobra.ExactArgs(1),
+	Use:   "check <input.gmd> [input2.gmd ...]",
+	Short: "Validate one or more .gmd files without compiling",
+	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("check: %s (not yet implemented)\n", args[0])
+		fmt.Printf("check: %v (not yet implemented)\n", args)
 		return nil
 	},
 }
