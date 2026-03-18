@@ -9,6 +9,7 @@ import (
 	"github.com/drewherron/genmark/internal/ir"
 	"github.com/drewherron/genmark/internal/lexer"
 	"github.com/drewherron/genmark/internal/parser"
+	"github.com/drewherron/genmark/internal/resolver"
 	"github.com/spf13/cobra"
 )
 
@@ -29,12 +30,14 @@ var compileCmd = &cobra.Command{
 			return fmt.Errorf("parsing failed")
 		}
 
-		fmt.Printf("parsed %d file(s): ", len(files))
-		total := 0
-		for _, f := range files {
-			total += len(f.People)
+		res := resolver.Resolve(files)
+		printDiagnostics(res.Diagnostics)
+		if res.HasErrors() {
+			return fmt.Errorf("resolution failed")
 		}
-		fmt.Printf("%d people\n", total)
+
+		fmt.Printf("resolved: %d people, %d families, %d sources\n",
+			len(res.People), len(res.Families), len(res.Sources))
 		fmt.Printf("GEDCOM emission not yet implemented (would write to %s)\n", outputFile)
 		return nil
 	},
@@ -65,6 +68,12 @@ func parseFiles(paths []string) ([]*ir.File, bool) {
 	}
 
 	return files, !hasErrors
+}
+
+func printDiagnostics(diags []resolver.Diagnostic) {
+	for _, d := range diags {
+		fmt.Fprintf(os.Stderr, "%s\n", d)
+	}
 }
 
 func init() {

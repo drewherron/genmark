@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/drewherron/genmark/internal/resolver"
 	"github.com/spf13/cobra"
 )
 
@@ -13,16 +14,31 @@ var checkCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		files, ok := parseFiles(args)
 		if !ok {
-			return fmt.Errorf("check failed with errors")
+			return fmt.Errorf("check failed with parse errors")
 		}
 
-		total := 0
-		for _, f := range files {
-			total += len(f.People)
-			fmt.Printf("%s: %d people, %d sources, %d unions\n",
-				f.Filename, len(f.People), len(f.Sources), len(f.Unions))
+		res := resolver.Resolve(files)
+		printDiagnostics(res.Diagnostics)
+
+		errors, warnings := 0, 0
+		for _, d := range res.Diagnostics {
+			if d.Severity == resolver.Error {
+				errors++
+			} else {
+				warnings++
+			}
 		}
-		fmt.Printf("OK: %d file(s), %d total people\n", len(files), total)
+
+		fmt.Printf("%d people, %d families, %d sources\n",
+			len(res.People), len(res.Families), len(res.Sources))
+		if errors > 0 {
+			return fmt.Errorf("check failed: %d error(s), %d warning(s)", errors, warnings)
+		}
+		if warnings > 0 {
+			fmt.Printf("OK with %d warning(s)\n", warnings)
+		} else {
+			fmt.Println("OK")
+		}
 		return nil
 	},
 }
