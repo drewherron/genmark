@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/drewherron/genmark/internal/gedcom"
 	"github.com/drewherron/genmark/internal/ir"
 	"github.com/drewherron/genmark/internal/lexer"
 	"github.com/drewherron/genmark/internal/parser"
@@ -36,9 +37,12 @@ var compileCmd = &cobra.Command{
 			return fmt.Errorf("resolution failed")
 		}
 
-		fmt.Printf("resolved: %d people, %d families, %d sources\n",
-			len(res.People), len(res.Families), len(res.Sources))
-		fmt.Printf("GEDCOM emission not yet implemented (would write to %s)\n", outputFile)
+		out := gedcom.Emit(res)
+		if err := os.WriteFile(outputFile, out, 0644); err != nil {
+			return fmt.Errorf("writing %s: %w", outputFile, err)
+		}
+		fmt.Printf("%s: %d people, %d families, %d sources\n",
+			outputFile, len(res.People), len(res.Families), len(res.Sources))
 		return nil
 	},
 }
