@@ -328,7 +328,8 @@ func (e *emitter) emitNote(level int, text string) {
 
 // --- name formatting ---
 
-// formatName converts "William Arthur Herron" to "William Arthur /Herron/".
+// formatName converts "John Arthur Doe" to "John Arthur /Doe/"
+// and handles suffixes: "John Doe Sr." becomes "John /Doe/ Sr."
 func formatName(displayName string) string {
 	parts := strings.Fields(displayName)
 	if len(parts) == 0 {
@@ -337,9 +338,43 @@ func formatName(displayName string) string {
 	if len(parts) == 1 {
 		return "/" + parts[0] + "/"
 	}
+
+	// Check for trailing suffix(es)
+	var suffixes []string
+	for len(parts) > 2 {
+		last := parts[len(parts)-1]
+		if !isSuffix(last) {
+			break
+		}
+		suffixes = append([]string{last}, suffixes...)
+		parts = parts[:len(parts)-1]
+	}
+
 	surname := parts[len(parts)-1]
 	given := strings.Join(parts[:len(parts)-1], " ")
-	return given + " /" + surname + "/"
+	name := given + " /" + surname + "/"
+	if len(suffixes) > 0 {
+		name += " " + strings.Join(suffixes, " ")
+	}
+	return name
+}
+
+var knownSuffixes = map[string]bool{
+	"jr":   true,
+	"jr.":  true,
+	"sr":   true,
+	"sr.":  true,
+	"i":    true,
+	"ii":   true,
+	"iii":  true,
+	"iv":   true,
+	"v":    true,
+	"esq":  true,
+	"esq.": true,
+}
+
+func isSuffix(s string) bool {
+	return knownSuffixes[strings.ToLower(s)]
 }
 
 // --- date formatting ---
