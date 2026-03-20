@@ -202,6 +202,9 @@ func (e *emitter) emitEvent(evt ir.Event) {
 	case "mil":
 		e.tag(1, "EVEN")
 		e.tag(2, "TYPE", "Military Service")
+		if dateStr := formatDate(evt.Date); dateStr != "" {
+			e.tag(2, "DATE", dateStr)
+		}
 		if evt.Desc != "" {
 			e.tag(2, "NOTE", evt.Desc)
 		}

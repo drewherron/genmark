@@ -325,12 +325,10 @@ func parseEvent(tag, val string, line int) ir.Event {
 func parseMil(val string, line int) ir.Event {
 	evt := ir.Event{Tag: "mil", Line: line}
 	val, evt.Sources = extractSourceCitations(val)
-	if idx := strings.LastIndex(val, " @ "); idx >= 0 {
-		evt.Desc = strings.TrimSpace(val[:idx])
-		evt.Place = strings.TrimSpace(val[idx+3:])
-	} else {
-		evt.Desc = strings.TrimSpace(val)
-	}
+
+	left, place := splitOnAt(val)
+	evt.Place = place
+	evt.Desc, evt.Date = extractDescDate(left)
 	return evt
 }
 
@@ -340,20 +338,12 @@ func parseOcc(val string, line int) ir.Event {
 
 	left, place := splitOnAt(val)
 	evt.Place = place
+	evt.Desc, evt.Date = extractDescDate(left)
 
-	if pStart := strings.Index(left, "("); pStart >= 0 {
-		if pEnd := strings.Index(left[pStart:], ")"); pEnd >= 0 {
-			rangeStr := left[pStart+1 : pStart+pEnd]
-			if parts := strings.SplitN(rangeStr, "..", 2); len(parts) == 2 {
-				evt.Period = &ir.DateRange{
-					From: strings.TrimSpace(parts[0]),
-					To:   strings.TrimSpace(parts[1]),
-				}
-			}
-			evt.Desc = strings.TrimSpace(left[:pStart])
-		}
-	} else {
-		evt.Desc = strings.TrimSpace(left)
+	// For occupations, a range date represents the period held.
+	if evt.Date.Modifier == ir.ModRange {
+		evt.Period = &ir.DateRange{From: evt.Date.From, To: evt.Date.To}
+		evt.Date = ir.Date{}
 	}
 	return evt
 }
@@ -364,17 +354,7 @@ func parseEvt(val string, line int) ir.Event {
 
 	left, place := splitOnAt(val)
 	evt.Place = place
-
-	// Split description from date: scan for first date-like token
-	words := strings.Fields(left)
-	for i, w := range words {
-		if len(w) > 0 && isDateStart(w[0]) {
-			evt.Desc = strings.Join(words[:i], " ")
-			evt.Date = parseDate(strings.Join(words[i:], " "))
-			return evt
-		}
-	}
-	evt.Desc = strings.TrimSpace(left)
+	evt.Desc, evt.Date = extractDescDate(left)
 	return evt
 }
 
@@ -461,6 +441,22 @@ func parseDatePlace(s string) (ir.Date, string) {
 		d = parseDate(dateStr)
 	}
 	return d, place
+}
+
+// extractDescDate splits "Description (date)" into description and date.
+// Used by description-first fields (occ, mil, evt).
+// Handles trailing text: "US Army (1945..1947), MP" → "US Army, MP"
+func extractDescDate(s string) (string, ir.Date) {
+	s = strings.TrimSpace(s)
+	if pStart := strings.Index(s, "("); pStart >= 0 {
+		if pEnd := strings.Index(s[pStart:], ")"); pEnd >= 0 {
+			dateStr := strings.TrimSpace(s[pStart+1 : pStart+pEnd])
+			before := strings.TrimRight(s[:pStart], " ")
+			after := s[pStart+pEnd+1:]
+			return strings.TrimSpace(before + after), parseDate(dateStr)
+		}
+	}
+	return s, ir.Date{}
 }
 
 func splitOnAt(s string) (left, right string) {
@@ -574,6 +570,3 @@ func tryChildModifier(s string) (ir.ChildModifier, bool) {
 	}
 }
 
-func isDateStart(ch byte) bool {
-	return (ch >= '0' && ch <= '9') || ch == '~' || ch == '<' || ch == '>' || ch == '?'
-}
