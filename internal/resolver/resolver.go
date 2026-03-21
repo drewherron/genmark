@@ -43,11 +43,18 @@ type Family struct {
 	Date      ir.Date
 	Place     string
 	Sources   []ir.SourceCitation
-	Children  []string                    // ordered, deduplicated child IDs
-	ChildMods map[string]ir.ChildModifier // only set for non-biological
-	Divorced  bool
+	Children      []string                    // ordered, deduplicated child IDs
+	ChildMods     map[string]ir.ChildModifier // only set for non-biological
+	PlainChildren []PlainChild                // unlinked children (no record)
+	Divorced      bool
 	DivDate   ir.Date
 	DivPlace  string
+}
+
+// PlainChild is an unlinked child name at the edge of the tree.
+type PlainChild struct {
+	Name     string
+	Modifier ir.ChildModifier
 }
 
 // Result is the output of the resolver.
@@ -312,6 +319,13 @@ func (r *resolver) mergeMarriageInfo(fam *Family, m ir.Marriage, filename string
 }
 
 func (r *resolver) addChild(fam *Family, ref ir.ChildRef) {
+	if ref.PlainText != "" {
+		fam.PlainChildren = append(fam.PlainChildren, PlainChild{
+			Name:     ref.PlainText,
+			Modifier: ref.Modifier,
+		})
+		return
+	}
 	for _, id := range fam.Children {
 		if id == ref.ID {
 			return
@@ -332,7 +346,9 @@ func (r *resolver) validateRefs(f *ir.File) {
 				r.checkPersonRef(f.Filename, m.Line, m.SpouseID, "marriage spouse")
 			}
 			for _, c := range m.Children {
-				r.checkPersonRef(f.Filename, c.Line, c.ID, "child")
+				if c.PlainText == "" {
+					r.checkPersonRef(f.Filename, c.Line, c.ID, "child")
+				}
 			}
 			r.checkSourceCites(f.Filename, m.Line, m.Sources)
 		}

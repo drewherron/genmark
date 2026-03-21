@@ -304,13 +304,21 @@ func splitField(text string) (tag, value string, ok bool) {
 func parseChildRefValue(text string, line int) ir.ChildRef {
 	text = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(text, ">"), " "))
 	ref := ir.ChildRef{Line: line}
-	ref.ID = extractFirstID(text)
-	if pStart := strings.Index(text, "("); pStart >= 0 {
-		if pEnd := strings.Index(text[pStart:], ")"); pEnd >= 0 {
-			if mod, ok := tryChildModifier(text[pStart+1 : pStart+pEnd]); ok {
+
+	// Check for modifier in trailing parentheses — only strip if recognized
+	if pStart := strings.LastIndex(text, "("); pStart >= 0 {
+		if pEnd := strings.LastIndex(text, ")"); pEnd > pStart {
+			if mod, ok := tryChildModifier(text[pStart+1 : pEnd]); ok {
 				ref.Modifier = mod
+				text = strings.TrimSpace(text[:pStart])
 			}
 		}
+	}
+
+	if strings.Contains(text, "[") {
+		ref.ID = extractFirstID(text)
+	} else {
+		ref.PlainText = strings.TrimSpace(text)
 	}
 	return ref
 }

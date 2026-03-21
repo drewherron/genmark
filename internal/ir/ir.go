@@ -63,9 +63,10 @@ const (
 )
 
 type ChildRef struct {
-	ID       string
-	Modifier ChildModifier
-	Line     int
+	ID        string
+	PlainText string // raw text for unlinked children at tree edges
+	Modifier  ChildModifier
+	Line      int
 }
 
 // Marriage holds everything declared on an m: line and its children.
