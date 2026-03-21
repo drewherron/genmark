@@ -185,7 +185,7 @@ func (p *parser) personField(tok *lexer.Token) {
 		p.person.Aliases = append(p.person.Aliases, val)
 	case "sex":
 		p.person.Sex = strings.TrimSpace(val)
-	case "b", "d", "chr", "bur", "imm", "res":
+	case "b", "d", "chr", "bur", "imm", "res", "bap", "nat", "emi", "crm", "cen":
 		p.person.Events = append(p.person.Events, parseEvent(tag, val, tok.Line))
 	case "mil":
 		p.person.Events = append(p.person.Events, parseMil(val, tok.Line))

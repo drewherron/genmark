@@ -456,7 +456,12 @@ var eventTagMap = map[string]string{
 	"b":   "BIRT",
 	"d":   "DEAT",
 	"chr": "CHR",
+	"bap": "BAPM",
 	"bur": "BURI",
+	"crm": "CREM",
 	"imm": "IMMI",
+	"emi": "EMIG",
+	"nat": "NATU",
 	"res": "RESI",
+	"cen": "CENS",
 }
