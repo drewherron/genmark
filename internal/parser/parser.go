@@ -518,8 +518,15 @@ func extractSourceCitations(val string) (string, []ir.SourceCitation) {
 		content := strings.TrimSpace(val[srcIdx+5 : endIdx])
 		c := ir.SourceCitation{}
 		if commaIdx := strings.Index(content, ","); commaIdx >= 0 {
-			c.ID = strings.TrimSpace(content[:commaIdx])
-			c.Detail = strings.TrimSpace(content[commaIdx+1:])
+			left := strings.TrimSpace(content[:commaIdx])
+			if !strings.Contains(left, " ") {
+				// Looks like an ID reference: [src: id, detail]
+				c.ID = left
+				c.Detail = strings.TrimSpace(content[commaIdx+1:])
+			} else {
+				// Free-form text with comma: [src: Some Book, p. 14]
+				c.Text = content
+			}
 		} else if !strings.Contains(content, " ") {
 			c.ID = content
 		} else {
