@@ -13,9 +13,9 @@
 ;;
 ;; Features:
 ;;   - Syntax highlighting for all Genmark constructs
-;;   - Block folding with Tab / Shift-Tab (org-mode style)
+;;   - Block folding with Tab / Shift-Tab
+;;   - Block movement with M-<up> / M-<down>
 ;;   - Auto-indentation
-;;   - Comment support (// and /* */)
 ;;
 ;; Installation:
 ;;
@@ -61,7 +61,7 @@
     ;; Brackets are punctuation, not paired
     (modify-syntax-entry ?\[ "(]" st)
     (modify-syntax-entry ?\] ")[" st)
-    ;; Underscore is word constituent (for IDs like john_doe)
+    ;; Underscore is word constituent (e.g. in person IDs)
     (modify-syntax-entry ?_ "w" st)
     st)
   "Syntax table for `genmark-mode'.")
