@@ -1,0 +1,106 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Genmark",
+  "scopeName": "source.genmark",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#source-header" },
+    { "include": "#union-header" },
+    { "include": "#person-header" },
+    { "include": "#field-tags" },
+    { "include": "#child-marker" },
+    { "include": "#source-citation" },
+    { "include": "#id-reference" },
+    { "include": "#at-separator" },
+    { "include": "#date-modifier" },
+    { "include": "#date-range" },
+    { "include": "#note-pipe" },
+    { "include": "#unknown-marker" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.genmark",
+          "match": "(?<!:)//.*$"
+        },
+        {
+          "name": "comment.block.genmark",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "source-header": {
+      "match": "^(source)\\s+(\\[\\w+\\])",
+      "captures": {
+        "1": { "name": "keyword.control.genmark" },
+        "2": { "name": "entity.name.tag.genmark" }
+      }
+    },
+    "union-header": {
+      "match": "^(\\[\\w+\\])\\s*(\\+)\\s*(\\[\\w+\\])",
+      "captures": {
+        "1": { "name": "entity.name.tag.genmark" },
+        "2": { "name": "keyword.operator.genmark" },
+        "3": { "name": "entity.name.tag.genmark" }
+      }
+    },
+    "person-header": {
+      "match": "^([A-Z].*?)\\s+(\\[\\w+\\])\\s*$",
+      "captures": {
+        "1": { "name": "entity.name.function.genmark" },
+        "2": { "name": "entity.name.tag.genmark" }
+      }
+    },
+    "field-tags": {
+      "match": "^\\s+(aka|sex|b|d|chr|bap|bur|crm|imm|emi|nat|res|cen|occ|mil|evt|m|div|parents|maybe|note|src|title|author|pub|url|repo|page)(:)",
+      "captures": {
+        "1": { "name": "keyword.other.genmark" },
+        "2": { "name": "punctuation.separator.genmark" }
+      }
+    },
+    "child-marker": {
+      "match": "^\\s+(>)",
+      "captures": {
+        "1": { "name": "keyword.operator.child.genmark" }
+      }
+    },
+    "source-citation": {
+      "match": "\\[src:[^\\]]*\\]",
+      "name": "string.quoted.other.genmark"
+    },
+    "id-reference": {
+      "match": "\\[\\w+\\]",
+      "name": "entity.name.tag.genmark"
+    },
+    "at-separator": {
+      "match": "\\s(@)\\s",
+      "captures": {
+        "1": { "name": "keyword.operator.at.genmark" }
+      }
+    },
+    "date-modifier": {
+      "match": "(?<=\\s|^)([~<>])(?=\\d)",
+      "captures": {
+        "1": { "name": "storage.type.genmark" }
+      }
+    },
+    "date-range": {
+      "match": "\\d+\\.\\.\\d+",
+      "name": "storage.type.genmark"
+    },
+    "note-pipe": {
+      "match": "^\\s+note:\\s+(\\|)\\s*$",
+      "captures": {
+        "1": { "name": "keyword.operator.pipe.genmark" }
+      }
+    },
+    "unknown-marker": {
+      "match": "^\\s+(?:d|sex):\\s+(\\?)\\s*$",
+      "captures": {
+        "1": { "name": "markup.bold.genmark" }
+      }
+    }
+  }
+}

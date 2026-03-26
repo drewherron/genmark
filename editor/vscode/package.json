@@ -1,0 +1,32 @@
+{
+  "name": "genmark",
+  "displayName": "Genmark",
+  "description": "Language support for Genmark (.gmd) genealogy files",
+  "version": "0.1.0",
+  "publisher": "drewherron",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/drewherron/genmark"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "genmark",
+        "aliases": ["Genmark", "genmark"],
+        "extensions": [".gmd"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "genmark",
+        "scopeName": "source.genmark",
+        "path": "./syntaxes/genmark.tmLanguage.json"
+      }
+    ]
+  }
+}
