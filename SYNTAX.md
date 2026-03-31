@@ -19,12 +19,17 @@ A `.gmd` file contains three kinds of top-level blocks, in any order:
 - **Source definitions** (`source [id]`)
 - **Standalone unions** (`[id] + [id]`)
 
-Blank lines between blocks are ignored. Indentation (two spaces recommended)
-marks fields as belonging to the enclosing block.
+A block starts at its header line (column 0, no indentation) and includes
+everything indented below it. Blank lines within indented content are part
+of the block; a blank line followed by unindented content ends it.
+Unindented comments directly above a header (with no blank line between)
+are also considered part of that block. Unindented comments separated from
+any block by blank lines are standalone -- useful as section markers in
+longer files.
 
 Multiple `.gmd` files can be compiled together into a single GEDCOM output.
 References between files are resolved automatically. This allows you to organize
-your genealogical data however you want. 
+your genealogical data however you want.
 
 ---
 
@@ -161,7 +166,7 @@ Compiles to `1 EVEN` with `2 TYPE <description>`.
 m: [spouse_id] date @ place
   > [child_id]
   > [child_id] (adopted)
-```
+ff```
 
 Children are listed with `>` indented under the marriage. Child modifiers:
 
@@ -394,6 +399,18 @@ to GEDCOM.
 2. Biographical context that belongs in the record goes in `note:` (compiles to GEDCOM NOTE)
 3. Raw source material (full obituary text, census transcriptions) goes in `/* block comments */` (ignored by compiler)
 
+### Comments and Blocks in Editors
+
+Comments directly above a record header (with no blank line between), and everything
+indented below it (regardless of blank lines), are considered part of that block for
+folding and movement in the Emacs mode. Unindented comments separated from records by blank lines
+are standalone -- they stay visible when blocks are folded and can be used as section
+markers. See [editor/EDITORS.md](editor/EDITORS.md) for details.
+
+Currently this block definition only applies to Emacs, but it's good to follow this
+standardized convention (knowing when blank lines and indents define a block). This
+behavior will be expanded to other editors in the future when/where possible.
+
 ### URLs in Comments
 
 Comment markers `//` and `/*` are only recognized when preceded by whitespace
@@ -402,6 +419,8 @@ a comment:
 
 ```
 src: https://www.example.com/page   // this is a comment
+
+note: Such useful information//this is not a comment
 ```
 
 ---
