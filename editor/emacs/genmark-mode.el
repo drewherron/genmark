@@ -31,7 +31,7 @@
 
 ;;; Code:
 
-(require 'outline)
+(require 'cl-lib)
 
 ;; --- Customization ---
 
@@ -143,6 +143,143 @@
     )
   "Font-lock keywords for `genmark-mode'.")
 
+;; --- Header Detection ---
+
+(defvar genmark--header-regexp
+  "^\\(?:[A-Za-z].*\\[\\w+\\]\\|source[ \t]+\\[\\w+\\]\\|\\[\\w+\\][ \t]*\\+\\)"
+  "Regexp matching top-level block headers.")
+
+;; --- Block Bounds ---
+
+(defun genmark--leading-start ()
+  "Return start of leading comments for the header at point.
+Walks backward over non-blank lines until a blank line or BOB.
+Returns the header position if there are no leading comments."
+  (save-excursion
+    (let ((beg (line-beginning-position)))
+      (forward-line -1)
+      (while (and (not (bobp))
+                  (not (looking-at-p "^[ \t]*$")))
+        (setq beg (line-beginning-position))
+        (forward-line -1))
+      (when (and (bobp) (not (looking-at-p "^[ \t]*$")))
+        (setq beg (point)))
+      beg)))
+
+(defun genmark--body-end ()
+  "Return position after the last line of the block body at point.
+Point must be on the header line.  Body = indented lines below;
+internal blank lines are included, trailing blank lines are not."
+  (save-excursion
+    (let ((end (line-beginning-position 2)))
+      (forward-line 1)
+      (while (not (eobp))
+        (cond
+         ;; Indented line: part of body
+         ((looking-at-p "^[ \t]+[^ \t\n]")
+          (setq end (line-beginning-position 2))
+          (forward-line 1))
+         ;; Blank line: skip, might be internal
+         ((looking-at-p "^[ \t]*$")
+          (forward-line 1))
+         ;; Non-indented non-blank: body ended
+         (t (goto-char (point-max)))))
+      end)))
+
+(defun genmark--find-header ()
+  "Find the header line for the block at point.
+Returns the position, or signals an error."
+  (save-excursion
+    (beginning-of-line)
+    (cond
+     ;; On a header
+     ((looking-at-p genmark--header-regexp)
+      (point))
+     ;; On an indented line or blank line: search backward
+     ((or (looking-at-p "^[ \t]+[^ \t\n]")
+          (looking-at-p "^[ \t]*$"))
+      (if (re-search-backward genmark--header-regexp nil t)
+          (point)
+        (user-error "Not inside a block")))
+     ;; Non-indented non-blank (comment): check if leading comment
+     (t
+      (save-excursion
+        (let ((start (point)))
+          (forward-line 1)
+          (while (and (not (eobp))
+                      (not (looking-at-p "^[ \t]*$"))
+                      (not (looking-at-p genmark--header-regexp)))
+            (forward-line 1))
+          (if (and (not (eobp)) (looking-at-p genmark--header-regexp))
+              (point)
+            (user-error "Not inside a block"))))))))
+
+(defun genmark--block-bounds ()
+  "Return (BEG . END) of the current top-level block.
+Includes leading comments (up to the first blank line above the
+header) and the indented body below."
+  (save-excursion
+    (let ((header (genmark--find-header)))
+      (goto-char header)
+      (cons (genmark--leading-start) (genmark--body-end)))))
+
+(defun genmark--comment-group-bounds ()
+  "Return (BEG . END) of the standalone comment group at point.
+Point must be on a non-indented, non-blank, non-header line."
+  (save-excursion
+    (beginning-of-line)
+    ;; Walk backward to find the start
+    (let ((beg (line-beginning-position)))
+      (save-excursion
+        (forward-line -1)
+        (while (and (not (bobp))
+                    (not (looking-at-p "^[ \t]*$"))
+                    (not (looking-at-p genmark--header-regexp)))
+          (setq beg (line-beginning-position))
+          (forward-line -1))
+        (when (and (bobp)
+                   (not (looking-at-p "^[ \t]*$"))
+                   (not (looking-at-p genmark--header-regexp)))
+          (setq beg (point))))
+      ;; Walk forward to find the end
+      (goto-char beg)
+      (while (and (not (eobp))
+                  (not (looking-at-p "^[ \t]*$"))
+                  (not (looking-at-p genmark--header-regexp)))
+        (forward-line 1))
+      (cons beg (point)))))
+
+(defun genmark--entity-at-point ()
+  "Return (BEG END TYPE) for the entity at point.
+TYPE is `block' for a header block or `comment' for a standalone
+comment group.  Signals an error if point is on a blank line."
+  (save-excursion
+    (beginning-of-line)
+    (cond
+     ;; On a header line
+     ((looking-at-p genmark--header-regexp)
+      (list (genmark--leading-start) (genmark--body-end) 'block))
+     ;; On an indented line: part of a header block's body
+     ((looking-at-p "^[ \t]+[^ \t\n]")
+      (if (re-search-backward genmark--header-regexp nil t)
+          (list (genmark--leading-start) (genmark--body-end) 'block)
+        (user-error "Not inside a block")))
+     ;; On a blank line
+     ((looking-at-p "^[ \t]*$")
+      (user-error "Not inside a block"))
+     ;; Non-indented non-blank non-header: comment line
+     (t
+      (let ((group (genmark--comment-group-bounds)))
+        ;; Check if this comment group directly precedes a header
+        ;; (no blank line between) — if so it's a leading comment
+        (save-excursion
+          (goto-char (cdr group))
+          (if (and (not (eobp)) (looking-at-p genmark--header-regexp))
+              ;; Leading comment for the next header — return block bounds
+              (list (car group) (genmark--body-end) 'block)
+            ;; Standalone comment
+            (list (car group) (cdr group) 'comment))))))))
+
 ;; --- Indentation ---
 
 (defun genmark--previous-nonblank-line-indent ()
@@ -241,171 +378,298 @@ On an empty indented line (double Enter), return to column 0."
         (newline)
         (indent-to indent)))))
 
-;; --- Folding (outline) ---
+;; --- Folding (overlays) ---
 
-(defun genmark--outline-level ()
-  "Determine outline level for the current line.
-Top-level blocks (person, source, union) are level 1."
-  1)
+(defun genmark--block-folded-p (header-pos)
+  "Return non-nil if the block at HEADER-POS is folded."
+  (save-excursion
+    (goto-char header-pos)
+    (let ((leading (genmark--leading-start))
+          (body-end (genmark--body-end)))
+      (cl-some (lambda (ov) (overlay-get ov 'genmark-fold))
+               (overlays-in leading body-end)))))
+
+(defun genmark--fold-block (header-pos)
+  "Fold the block whose header is at HEADER-POS.
+Hides leading comments above and body below, leaving only the
+header line visible."
+  (save-excursion
+    (goto-char header-pos)
+    (let ((leading-start (genmark--leading-start))
+          (header-start (line-beginning-position))
+          (header-end (line-end-position))
+          (body-end (genmark--body-end)))
+      ;; Hide leading comments (if any)
+      (when (< leading-start header-start)
+        (let ((ov (make-overlay leading-start header-start)))
+          (overlay-put ov 'genmark-fold t)
+          (overlay-put ov 'invisible t)
+          (overlay-put ov 'evaporate t)))
+      ;; Hide body (if any content beyond the header line)
+      (when (> body-end (min (1+ header-end) (point-max)))
+        (let ((ov (make-overlay header-end (1- body-end))))
+          (overlay-put ov 'genmark-fold t)
+          (overlay-put ov 'invisible t)
+          (overlay-put ov 'after-string
+                       (propertize " ..." 'face 'font-lock-comment-face))
+          (overlay-put ov 'evaporate t))))))
+
+(defun genmark--unfold-block (header-pos)
+  "Unfold the block whose header is at HEADER-POS."
+  (save-excursion
+    (goto-char header-pos)
+    (let ((leading-start (genmark--leading-start))
+          (body-end (genmark--body-end)))
+      (dolist (ov (overlays-in leading-start body-end))
+        (when (overlay-get ov 'genmark-fold)
+          (delete-overlay ov))))))
 
 (defun genmark-fold-toggle ()
-  "Toggle folding of the current top-level block.
-If point is not on a heading, fold/unfold the nearest previous heading."
+  "Toggle folding of the current block.
+If point is not on a header, find the enclosing block's header."
   (interactive)
-  (save-excursion
-    (beginning-of-line)
-    (unless (looking-at-p outline-regexp)
-      (outline-previous-heading))
-    (if (save-excursion
-          (outline-end-of-heading)
-          (not (outline-invisible-p (line-end-position))))
-        (outline-hide-subtree)
-      (outline-show-subtree))))
+  (let ((header (genmark--find-header)))
+    (if (genmark--block-folded-p header)
+        (genmark--unfold-block header)
+      (genmark--fold-block header))))
 
 (defun genmark-fold-all ()
-  "Toggle folding of all top-level blocks.
-If any block is expanded, collapse all.  Otherwise, expand all."
+  "Toggle folding of all blocks.
+If any block with content is unfolded, fold all.  Otherwise, unfold all."
   (interactive)
-  (let ((any-visible nil))
+  (let ((headers nil)
+        (any-unfolded nil))
     (save-excursion
       (goto-char (point-min))
-      (while (re-search-forward outline-regexp nil t)
+      (while (re-search-forward genmark--header-regexp nil t)
+        (push (line-beginning-position) headers)))
+    (setq headers (nreverse headers))
+    ;; Check if any block with foldable content is unfolded
+    (dolist (h headers)
+      (unless (genmark--block-folded-p h)
         (save-excursion
-          (outline-end-of-heading)
-          (when (not (outline-invisible-p (line-end-position)))
-            ;; Check if there is content after the heading
-            (forward-line 1)
-            (unless (or (eobp)
-                        (looking-at-p outline-regexp)
-                        (looking-at-p "^\\s-*$"))
-              (setq any-visible t))))))
-    (if any-visible
-        (outline-hide-body)
-      (outline-show-all))))
+          (goto-char h)
+          (let ((leading (genmark--leading-start))
+                (body-end (genmark--body-end)))
+            (when (or (< leading (line-beginning-position))
+                      (> body-end (line-beginning-position 2)))
+              (setq any-unfolded t))))))
+    (if any-unfolded
+        (dolist (h headers)
+          (unless (genmark--block-folded-p h)
+            (genmark--fold-block h)))
+      (dolist (h headers)
+        (when (genmark--block-folded-p h)
+          (genmark--unfold-block h))))))
 
 ;; --- Block Movement ---
 
-(defun genmark--block-bounds ()
-  "Return (BEG . END) of the current top-level block.
-A block runs from a header line to just before the next header."
-  (save-excursion
-    (let (beg end)
-      (beginning-of-line)
-      (unless (looking-at-p outline-regexp)
-        (unless (re-search-backward outline-regexp nil t)
-          (user-error "Not inside a block")))
-      (setq beg (point))
-      (forward-line 1)
-      (if (re-search-forward outline-regexp nil t)
-          (progn (beginning-of-line) (setq end (point)))
-        (setq end (point-max)))
-      (cons beg end))))
-
-(defun genmark--block-folded-p (pos)
-  "Return non-nil if the block starting at POS is folded."
+(defun genmark--adjacent-entity (pos direction)
+  "Find the entity adjacent to POS in DIRECTION (`up' or `down').
+Skips blank lines, then returns the entity found via
+`genmark--entity-at-point'.  Signals an error if none exists."
   (save-excursion
     (goto-char pos)
-    (end-of-line)
-    (and (< (point) (point-max))
-         (outline-invisible-p (1+ (point))))))
+    (if (eq direction 'down)
+        (progn
+          (while (and (not (eobp)) (looking-at-p "^[ \t]*$"))
+            (forward-line 1))
+          (if (eobp)
+              (user-error "No block below")
+            (genmark--entity-at-point)))
+      ;; up
+      (forward-line -1)
+      (while (and (not (bobp)) (looking-at-p "^[ \t]*$"))
+        (forward-line -1))
+      (if (and (bobp) (looking-at-p "^[ \t]*$"))
+          (user-error "No block above")
+        (genmark--entity-at-point)))))
 
 (defun genmark-move-block-up ()
-  "Move the current top-level block above the previous one."
+  "Move the current entity above the previous one.
+An entity is a header block (with leading comments and body)
+or a standalone comment group.  Blank lines between entities
+stay in place as separators."
   (interactive)
-  (let* ((cur (genmark--block-bounds))
-         (cur-beg (car cur))
-         (cur-end (cdr cur))
-         (cur-folded (genmark--block-folded-p cur-beg))
-         (cur-text (buffer-substring cur-beg cur-end)))
-    (save-excursion
-      (goto-char cur-beg)
-      (unless (re-search-backward outline-regexp nil t)
-        (user-error "No block above")))
-    (let* ((prev (save-excursion
-                   (goto-char cur-beg)
-                   (re-search-backward outline-regexp nil t)
-                   (genmark--block-bounds)))
-           (prev-beg (car prev))
-           (prev-folded (genmark--block-folded-p prev-beg))
-           (prev-text (buffer-substring prev-beg cur-beg)))
+  (let* ((cur (genmark--entity-at-point))
+         (cur-beg (nth 0 cur))
+         (cur-end (nth 1 cur))
+         (cur-type (nth 2 cur))
+         (cur-header (when (eq cur-type 'block)
+                       (save-excursion
+                         (goto-char cur-beg)
+                         (when (re-search-forward genmark--header-regexp
+                                                  cur-end t)
+                           (line-beginning-position)))))
+         (cur-folded (when cur-header
+                       (genmark--block-folded-p cur-header))))
+    (let* ((prev (genmark--adjacent-entity cur-beg 'up))
+           (prev-beg (nth 0 prev))
+           (prev-end (nth 1 prev))
+           (prev-type (nth 2 prev))
+           (prev-header (when (eq prev-type 'block)
+                          (save-excursion
+                            (goto-char prev-beg)
+                            (when (re-search-forward genmark--header-regexp
+                                                     prev-end t)
+                              (line-beginning-position)))))
+           (prev-folded (when prev-header
+                          (genmark--block-folded-p prev-header)))
+           (prev-text (buffer-substring prev-beg prev-end))
+           (separator (buffer-substring prev-end cur-beg))
+           (cur-text (buffer-substring cur-beg cur-end)))
+      ;; Remove fold overlays in the affected region
+      (dolist (ov (overlays-in prev-beg cur-end))
+        (when (overlay-get ov 'genmark-fold)
+          (delete-overlay ov)))
+      ;; Swap: cur + separator + prev
       (delete-region prev-beg cur-end)
       (goto-char prev-beg)
-      (insert cur-text prev-text)
+      (insert cur-text separator prev-text)
+      ;; Restore fold state
       (when cur-folded
         (save-excursion
           (goto-char prev-beg)
-          (outline-hide-subtree)))
+          (when (re-search-forward genmark--header-regexp
+                                   (+ prev-beg (length cur-text)) t)
+            (genmark--fold-block (line-beginning-position)))))
       (when prev-folded
         (save-excursion
-          (goto-char (+ prev-beg (length cur-text)))
-          (outline-hide-subtree)))
-      (goto-char prev-beg))))
+          (goto-char (+ prev-beg (length cur-text) (length separator)))
+          (when (re-search-forward genmark--header-regexp
+                                   (+ prev-beg (length cur-text)
+                                      (length separator)
+                                      (length prev-text)) t)
+            (genmark--fold-block (line-beginning-position)))))
+      ;; Position cursor on the moved entity's header (or first line)
+      (goto-char prev-beg)
+      (when (and (eq cur-type 'block)
+                 (re-search-forward genmark--header-regexp
+                                    (+ prev-beg (length cur-text)) t))
+        (beginning-of-line)))))
 
 (defun genmark-move-block-down ()
-  "Move the current top-level block below the next one."
+  "Move the current entity below the next one.
+An entity is a header block (with leading comments and body)
+or a standalone comment group.  Blank lines between entities
+stay in place as separators."
   (interactive)
-  (let* ((cur (genmark--block-bounds))
-         (cur-beg (car cur))
-         (cur-end (cdr cur))
-         (cur-folded (genmark--block-folded-p cur-beg))
-         (cur-text (buffer-substring cur-beg cur-end)))
-    (unless (save-excursion
-              (goto-char cur-end)
-              (looking-at-p outline-regexp))
-      (user-error "No block below"))
-    (let* ((next-beg cur-end)
-           (next-folded (genmark--block-folded-p next-beg))
-           (next (save-excursion
-                   (goto-char next-beg)
-                   (genmark--block-bounds)))
-           (next-end (cdr next))
+  (let* ((cur (genmark--entity-at-point))
+         (cur-beg (nth 0 cur))
+         (cur-end (nth 1 cur))
+         (cur-type (nth 2 cur))
+         (cur-header (when (eq cur-type 'block)
+                       (save-excursion
+                         (goto-char cur-beg)
+                         (when (re-search-forward genmark--header-regexp
+                                                  cur-end t)
+                           (line-beginning-position)))))
+         (cur-folded (when cur-header
+                       (genmark--block-folded-p cur-header))))
+    (let* ((next (genmark--adjacent-entity cur-end 'down))
+           (next-beg (nth 0 next))
+           (next-end (nth 1 next))
+           (next-type (nth 2 next))
+           (next-header (when (eq next-type 'block)
+                          (save-excursion
+                            (goto-char next-beg)
+                            (when (re-search-forward genmark--header-regexp
+                                                     next-end t)
+                              (line-beginning-position)))))
+           (next-folded (when next-header
+                          (genmark--block-folded-p next-header)))
+           (cur-text (buffer-substring cur-beg cur-end))
+           (separator (buffer-substring cur-end next-beg))
            (next-text (buffer-substring next-beg next-end)))
+      ;; Remove fold overlays in the affected region
+      (dolist (ov (overlays-in cur-beg next-end))
+        (when (overlay-get ov 'genmark-fold)
+          (delete-overlay ov)))
+      ;; Swap: next + separator + cur
       (delete-region cur-beg next-end)
       (goto-char cur-beg)
-      (insert next-text cur-text)
+      (insert next-text separator cur-text)
+      ;; Restore fold state
       (when next-folded
         (save-excursion
           (goto-char cur-beg)
-          (outline-hide-subtree)))
+          (when (re-search-forward genmark--header-regexp
+                                   (+ cur-beg (length next-text)) t)
+            (genmark--fold-block (line-beginning-position)))))
       (when cur-folded
         (save-excursion
-          (goto-char (+ cur-beg (length next-text)))
-          (outline-hide-subtree)))
-      (goto-char (+ cur-beg (length next-text))))))
+          (goto-char (+ cur-beg (length next-text) (length separator)))
+          (when (re-search-forward genmark--header-regexp
+                                   (+ cur-beg (length next-text)
+                                      (length separator)
+                                      (length cur-text)) t)
+            (genmark--fold-block (line-beginning-position)))))
+      ;; Position cursor on the moved entity's header (or first line)
+      (goto-char (+ cur-beg (length next-text) (length separator)))
+      (when (and (eq cur-type 'block)
+                 (re-search-forward genmark--header-regexp
+                                    (+ cur-beg (length next-text)
+                                       (length separator)
+                                       (length cur-text)) t))
+        (beginning-of-line)))))
 
 ;; --- Block Sorting ---
 
 (defun genmark--block-type (text)
   "Return the type of a block: \\='person, \\='source, or \\='union."
-  (cond
-   ((string-match-p "^source[ \t]" text) 'source)
-   ((string-match-p "^\\[\\w+\\][ \t]*\\+" text) 'union)
-   (t 'person)))
+  (let ((header (if (string-match "\n" text)
+                    ;; Find the header line (skip leading comments)
+                    (with-temp-buffer
+                      (insert text)
+                      (goto-char (point-min))
+                      (while (and (not (eobp))
+                                  (not (looking-at-p genmark--header-regexp)))
+                        (forward-line 1))
+                      (buffer-substring-no-properties
+                       (line-beginning-position) (line-end-position)))
+                  text)))
+    (cond
+     ((string-match-p "^source[ \t]" header) 'source)
+     ((string-match-p "^\\[\\w+\\][ \t]*\\+" header) 'union)
+     (t 'person))))
 
 (defun genmark--collect-blocks ()
   "Collect all blocks in the buffer.
 Returns (PREAMBLE . BLOCKS) where PREAMBLE is text before the first
-header and BLOCKS is a list of (TYPE TEXT FOLDED) elements."
+block (including its leading comments) and BLOCKS is a list of
+\(TYPE TEXT FOLDED) elements.  Each block's text includes its leading
+comments.  Inter-block gaps (standalone comments, blank lines) are
+appended to the preceding block's text."
   (save-excursion
     (goto-char (point-min))
-    (let (preamble blocks)
-      (if (re-search-forward outline-regexp nil t)
-          (progn
-            (beginning-of-line)
-            (setq preamble (buffer-substring-no-properties
-                            (point-min) (point))))
-        (setq preamble (buffer-substring-no-properties
-                        (point-min) (point-max))))
-      (while (and (not (eobp)) (looking-at-p outline-regexp))
-        (let ((beg (point)) end text folded)
-          (setq folded (genmark--block-folded-p (point)))
-          (forward-line 1)
-          (if (re-search-forward outline-regexp nil t)
-              (progn (beginning-of-line) (setq end (point)))
-            (setq end (point-max)))
-          (setq text (buffer-substring-no-properties beg end))
-          (push (list (genmark--block-type text) text folded) blocks)
-          (goto-char end)))
+    (let (preamble blocks headers)
+      ;; Collect all header positions
+      (while (re-search-forward genmark--header-regexp nil t)
+        (push (line-beginning-position) headers))
+      (setq headers (nreverse headers))
+      (if (null headers)
+          (setq preamble (buffer-substring-no-properties
+                          (point-min) (point-max)))
+        ;; Preamble: everything before the first block's leading comments
+        (goto-char (car headers))
+        (let ((first-beg (genmark--leading-start)))
+          (setq preamble (buffer-substring-no-properties
+                          (point-min) first-beg)))
+        ;; Collect blocks: each block runs from its leading-start to the
+        ;; next block's leading-start (or EOB for the last block)
+        (let ((hlist headers))
+          (while hlist
+            (let* ((header (car hlist))
+                   (folded (genmark--block-folded-p header))
+                   (beg (save-excursion (goto-char header)
+                                        (genmark--leading-start)))
+                   (end (if (cdr hlist)
+                            (save-excursion (goto-char (cadr hlist))
+                                            (genmark--leading-start))
+                          (point-max)))
+                   (text (buffer-substring-no-properties beg end)))
+              (push (list (genmark--block-type text) text folded) blocks))
+            (setq hlist (cdr hlist)))))
       (cons preamble (nreverse blocks)))))
 
 (defun genmark--extract-birth-date (text)
@@ -440,18 +704,26 @@ Returns \"9999\" for blocks with no birth date, sorting them to the end."
 Returns a list of (TYPE TEXT FOLDED) elements."
   (save-excursion
     (goto-char beg)
-    (let (blocks)
-      (while (and (< (point) end) (looking-at-p outline-regexp))
-        (let ((block-beg (point)) block-end text folded)
-          (setq folded (genmark--block-folded-p (point)))
-          (forward-line 1)
-          (if (re-search-forward outline-regexp nil t)
-              (progn (beginning-of-line)
-                     (setq block-end (min (point) end)))
-            (setq block-end end))
-          (setq text (buffer-substring-no-properties block-beg block-end))
-          (push (list (genmark--block-type text) text folded) blocks)
-          (goto-char block-end)))
+    (let (blocks headers)
+      ;; Collect headers in region
+      (while (and (< (point) end)
+                  (re-search-forward genmark--header-regexp end t))
+        (push (line-beginning-position) headers))
+      (setq headers (nreverse headers))
+      (let ((hlist headers))
+        (while hlist
+          (let* ((header (car hlist))
+                 (folded (genmark--block-folded-p header))
+                 (block-beg (save-excursion (goto-char header)
+                                            (genmark--leading-start)))
+                 (block-end (if (cdr hlist)
+                                (save-excursion (goto-char (cadr hlist))
+                                                (genmark--leading-start))
+                              end))
+                 (text (buffer-substring-no-properties
+                        (max block-beg beg) block-end)))
+            (push (list (genmark--block-type text) text folded) blocks))
+          (setq hlist (cdr hlist))))
       (nreverse blocks))))
 
 (defun genmark--sort-blocks (key-fn)
@@ -472,7 +744,9 @@ Each element is (TYPE TEXT FOLDED)."
       (when (nth 2 block)
         (save-excursion
           (goto-char pos)
-          (outline-hide-subtree))))))
+          (when (re-search-forward genmark--header-regexp
+                                   (+ pos (length (nth 1 block))) t)
+            (genmark--fold-block (line-beginning-position))))))))
 
 (defun genmark--sort-buffer (key-fn)
   "Sort all person blocks in the buffer using KEY-FN."
@@ -501,18 +775,18 @@ Each element is (TYPE TEXT FOLDED)."
       ;; Start: find the block containing region start
       (goto-char rbeg)
       (beginning-of-line)
-      (if (looking-at-p outline-regexp)
+      (if (looking-at-p genmark--header-regexp)
           (setq sort-beg (point))
-        (if (re-search-backward outline-regexp nil t)
+        (if (re-search-backward genmark--header-regexp nil t)
             (setq sort-beg (point))
           (user-error "No blocks in region")))
       ;; End: find the end of the block containing region end
       (goto-char rend)
       (beginning-of-line)
-      (if (and (looking-at-p outline-regexp) (> (point) sort-beg))
+      (if (and (looking-at-p genmark--header-regexp) (> (point) sort-beg))
           ;; Region ends exactly at next header — don't include it
           (setq sort-end (point))
-        (if (re-search-forward outline-regexp nil t)
+        (if (re-search-forward genmark--header-regexp nil t)
             (progn (beginning-of-line) (setq sort-end (point)))
           (setq sort-end (point-max)))))
     (let* ((blocks (genmark--collect-blocks-in-region sort-beg sort-end))
@@ -564,7 +838,7 @@ On a top-level heading, toggle fold.  Otherwise, indent the line."
   (interactive)
   (if (save-excursion
         (beginning-of-line)
-        (looking-at-p outline-regexp))
+        (looking-at-p genmark--header-regexp))
       (genmark-fold-toggle)
     (genmark-indent-line)))
 
@@ -603,11 +877,6 @@ Key bindings:
   (setq-local indent-line-function #'genmark-indent-line)
   (setq-local indent-tabs-mode nil)
   (setq-local tab-width genmark-indent-width)
-
-  ;; Outline for folding
-  (setq-local outline-regexp "^[A-Za-z].*\\[\\w+\\]\\|^source\\s-+\\[\\w+\\]\\|^\\[\\w+\\]\\s-*\\+")
-  (setq-local outline-level #'genmark--outline-level)
-  (outline-minor-mode 1)
 
   ;; Disable electric indent so our RET binding handles indentation
   (electric-indent-local-mode -1))

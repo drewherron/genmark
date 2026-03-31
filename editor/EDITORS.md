@@ -39,6 +39,35 @@ Keep in mind that it won't sort independent comment blocks, so be careful
 sorting if you have comment-defined sections in your file (i.e., just sort
 in selected regions).
 
+**Blocks and comments:**
+
+A "block" in Emacs is a top-level record (person, source, or union) plus
+any comments directly above it (with no blank line between), and everything
+indented below it (regardless of blank lines). Folding a block with `TAB`
+collapses both the leading comments and the indented body, leaving only the
+header line visible.
+
+Comments separated from blocks by blank lines are standalone -- they don't
+belong to any block. When you fold everything with `S-TAB`, standalone
+comments remain visible, allowing comment-defined sections:
+
+```
+// --- Source Definitions ---
+
+source [src_1920_census] ...
+source [src_stmarks] ...
+
+// --- Person Records ---
+
+John Arthur Doe Sr. [john_doe] ...
+James Doe [james_doe]
+...
+```
+
+`M-<up>` and `M-<down>` move the current entity -- either a block or a
+standalone comment group. This means you can move a block past a section
+comment one step at a time,  or rearrange the section comments themselves.
+
 ---
 
 ## Vim / Neovim
