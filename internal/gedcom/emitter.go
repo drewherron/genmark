@@ -125,6 +125,9 @@ func (e *emitter) emitSource(s *ir.Source) {
 		e.tag(1, "REPO")
 		e.tag(2, "NAME", s.Repo)
 	}
+	if s.Page != "" {
+		e.tag(1, "NOTE", "Page: "+s.Page)
+	}
 	if s.URL != "" {
 		e.tag(1, "NOTE", s.URL)
 	}
