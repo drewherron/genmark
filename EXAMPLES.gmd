@@ -1,0 +1,231 @@
+// ==========================================================================
+// Genmark Examples
+// This file demonstrates every syntax feature of the Genmark language.
+// It is also a valid .gmd file that compiles without errors.
+// ==========================================================================
+
+
+// --- Source Definitions ---
+// Declare reusable sources with full metadata. Reference them by ID on any
+// fact line using [src: id] or [src: id, detail].
+
+source [src_1920_census]
+  title: 1920 United States Federal Census
+  author: Bureau of the Census
+  pub: National Archives, 1920
+  repo: National Archives, Washington, D.C.
+  url: https://www.familysearch.org/ark:/61903/1:1:ABCD
+  page: Roll 42, Sheet 3B
+  note: Accessed via FamilySearch, January 2024
+
+source [src_stmarks]
+  title: St. Mark's Parish Register
+  author: Rev. Thomas Wells
+  repo: London Metropolitan Archives
+
+
+// --- Person Records ---
+
+// A full record demonstrating most person-level fields.
+John Arthur Doe Sr. [john_doe]
+  aka: Jack Doe
+  aka: J.A. Doe
+  sex: M
+  b: 1892-08-12 @ Boston, Suffolk, Massachusetts  [src: src_1920_census, p. 14]
+  chr: 1892-09-01 @ St. Mary's Church, Boston, Massachusetts
+  res: 1910 @ Brooklyn, Kings, New York
+  res: 1920 @ Portland, Multnomah, Oregon
+  cen: 1920-01-05 @ Portland, Multnomah, Oregon  [src: src_1920_census]
+  emi: 1888 @ Liverpool, England
+  imm: 1888 @ New York, New York
+  nat: 1905-03-15 @ Brooklyn, Kings, New York
+  occ: Carpenter @ Brooklyn, New York
+  occ: Factory Foreman (1921..1945) @ Portland, Oregon
+  mil: US Army (1917..1919), 26th Infantry Division
+  evt: Graduated summa cum laude (1912-06) @ Columbia University, New York
+  m: [mary_smith] 1915-06-20 @ Portland, Oregon
+    > [robert_doe]
+    > [alice_doe]
+    > [william_doe]
+    > Catherine Doe
+    > Thomas Doe (died young)
+  d: 1965-11-03 @ Portland, Multnomah, Oregon
+  bur: @ River View Cemetery, Portland, Oregon
+  parents: [james_doe], [elizabeth_oconnor]
+  note: Known in the community as "Jack." Ran the carpentry shop at
+  note: |
+    Family bible records his middle name as "Arthur" but his birth
+    certificate reads "Aurthur" -- likely a clerical error.
+
+    The 1920 census lists the family at 412 SE Pine Street, Portland.
+  src: https://www.findagrave.com/memorial/12345/john-doe
+  src: Portland City Directory, 1948, p. 212
+
+// A minimal stub -- just a name and ID. Useful for spouses or relatives
+// at the edges of the tree when you have no further information.
+James Doe [james_doe]
+
+// Another stub with basic info.
+Elizabeth O'Connor [elizabeth_oconnor]
+  sex: F
+  b: ~1868 @ County Cork, Ireland
+
+Mary Ellen Smith [mary_smith]
+  sex: F
+  b: 1895-03 @ Portland, Oregon
+  bap: 1895-04-14 @ First Methodist Church, Portland, Oregon
+  d: 1978-02-28 @ Portland, Oregon
+  crm: @ Wilhelm's Portland Memorial, Portland, Oregon
+  parents: William Smith, Catherine Murray
+
+  /*
+    Obituary (Portland Oregonian, March 2, 1978):
+
+    Mary Ellen Doe (nee Smith), 82, of Portland, passed away February 28
+    at Providence Hospital. Born March 1895 in Portland to William and
+    Catherine Smith. Married John A. Doe in 1915. Survived by son Robert,
+    daughters Alice and Carol, 8 grandchildren.
+
+    This block comment is completely ignored by the compiler. Use it
+    for raw source material you want to keep alongside the record.
+  */
+
+
+// --- Date Expressions ---
+// Demonstrating all date modifiers on a single person.
+
+Edward Doe [edward_doe]
+  sex: M
+  b: ~1820 @ Virginia                          // approximate date
+  res: >1845 @ St. Louis, Missouri             // after
+  imm: <1815                                   // before (place unknown)
+  d: 1870..1875 @ Kansas                       // date range
+  // The compiler doesn't care about line-level comments here
+  note: Census gap between 1860 and 1880 makes death date uncertain.
+
+// d: ? means "known deceased, no details"
+Margaret Doe [margaret_doe]
+  sex: F
+  d: ?
+
+
+// --- Children and Modifiers ---
+
+Robert John Doe [robert_doe]
+  sex: M
+  b: 1916-04-02 @ Portland, Oregon
+  d: 2001-08-14 @ Portland, Oregon
+  parents: [john_doe], [mary_smith]
+  m: [carol_johnson] 1940-12-25 @ Portland, Oregon
+    > [susan_doe]
+    > James Robert Doe
+    > Patricia Ann Doe (adopted)
+
+Carol Ann Johnson [carol_johnson]
+  sex: F
+
+Susan Marie Doe [susan_doe]
+  sex: F
+  b: 1942 @ Portland, Oregon
+
+Alice Jane Doe [alice_doe]
+  sex: F
+  b: 1918 @ Portland, Oregon
+  // Forward reference -- Henry isn't defined yet, but that's fine
+  m: [henry_wilson]
+    > [frank_wilson]
+    > [grace_wilson]
+  d: 1999 @ Seattle, Washington
+
+Henry Wilson [henry_wilson]
+  sex: M
+
+Frank Wilson [frank_wilson]
+  sex: M
+
+Grace Wilson [grace_wilson]
+  sex: F
+
+
+// --- Multiple Marriages and Divorce ---
+
+William Arthur Doe [william_doe]
+  sex: M
+  b: 1920-07-14 @ Portland, Oregon
+  m: [helen_brown] 1942 @ San Francisco, California
+    > [peter_doe]
+    > Janet Doe (step)
+  div: [helen_brown] 1955
+  m: [ruth_taylor] 1957-09-10 @ Reno, Nevada
+    > [david_doe]
+  d: 1988-12-01 @ Portland, Oregon
+  parents: [john_doe], [mary_smith]
+
+Helen Brown [helen_brown]
+  sex: F
+
+Ruth Taylor [ruth_taylor]
+  sex: F
+
+Peter Doe [peter_doe]
+  sex: M
+
+David Doe [david_doe]
+  sex: M
+  b: 1958 @ Portland, Oregon
+  // Bottom-up: this creates/merges the same family as William's second marriage
+  parents: [william_doe], [ruth_taylor]
+
+
+// --- Speculative Links ---
+
+Isaac Doe [isaac_doe]
+  sex: M
+  b: 1791-01-19 @ Virginia
+  d: 1849-01-06 @ Kentucky
+  // Linked speculative relationship
+  maybe: father [edward_doe]
+  // Plain-text speculative relationship (no record to link to)
+  maybe: cousin Samuel Doe of Richmond
+  note: Parentage uncertain. Edward Doe proposed as father but not verified.
+
+
+// --- Plain-Text Parents ---
+// At tree edges, use plain names instead of [id] references.
+// No family record is created; emits as a NOTE.
+
+Sarah Doe [sarah_doe]
+  sex: F
+  b: 1850 @ County Kerry, Ireland
+  parents: Patrick Doe, Bridget O'Sullivan
+
+
+// --- Inline Source Citations ---
+
+Thomas Doe [thomas_doe]
+  sex: M
+  // Referencing a defined source by ID
+  b: 1888-06-15 @ London  [src: src_stmarks, p. 142]
+  // One-off inline citation (not a defined source)
+  d: 1955-03-22 @ Bristol, England  [src: Bristol Records Office, death cert #4421]
+
+
+// --- Standalone Union ---
+// For couples where you prefer not to embed the family under either spouse.
+
+[henry_wilson] + [alice_doe]
+  m: 1940-05-15 @ Seattle, Washington
+    > [frank_wilson]
+    > [grace_wilson]
+
+// An unmarried partnership (no m: line, just children).
+[isaac_doe] + [margaret_doe]
+  > [sarah_doe]
+
+
+// --- sex: ? (unknown sex) ---
+
+Pat Doe [pat_doe]
+  sex: ?
+  b: 1900
+  note: Name appears in a ledger with no other identifying information.
