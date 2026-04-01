@@ -186,8 +186,7 @@ func (e *emitter) emitPerson(p *ir.Person) {
 
 	// Person-level sources
 	for _, s := range p.Sources {
-		e.tag(1, "SOUR")
-		e.tag(2, "NOTE", s.Value)
+		e.tag(1, "SOUR", s.Value)
 	}
 }
 
