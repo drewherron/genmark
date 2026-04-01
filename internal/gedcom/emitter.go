@@ -304,12 +304,17 @@ func (e *emitter) emitFamily(fam *resolver.Family) {
 	// Plain-text children (no record linkage)
 	for _, pc := range fam.PlainChildren {
 		note := "Child: " + pc.Name
-		if pc.Modifier == ir.ChildAdopted {
+		switch pc.Modifier {
+		case ir.ChildAdopted:
 			note = "Child (adopted): " + pc.Name
-		} else if pc.Modifier == ir.ChildStep {
+		case ir.ChildStep:
 			note = "Child (step): " + pc.Name
-		} else if pc.Modifier == ir.ChildFoster {
+		case ir.ChildFoster:
 			note = "Child (foster): " + pc.Name
+		case ir.ChildStillborn:
+			note = "Child (stillborn): " + pc.Name
+		case ir.ChildDiedYoung:
+			note = "Child (died young): " + pc.Name
 		}
 		e.tag(1, "NOTE", note)
 	}
