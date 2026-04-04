@@ -8,11 +8,18 @@ import (
 )
 
 var checkCmd = &cobra.Command{
-	Use:   "check <input.gmd> [input2.gmd ...]",
-	Short: "Validate one or more .gmd files without compiling",
+	Use:   "check <input.gmd|dir> [...]",
+	Short: "Validate .gmd files (or directories of them) without compiling",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		files, ok := parseFiles(args)
+		expanded, err := expandArgs(args)
+		if err != nil {
+			return err
+		}
+		if len(expanded) == 0 {
+			return fmt.Errorf("no .gmd files found")
+		}
+		files, ok := parseFiles(expanded)
 		if !ok {
 			return fmt.Errorf("check failed with parse errors")
 		}

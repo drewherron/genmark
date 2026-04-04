@@ -17,16 +17,30 @@ import (
 var outputFile string
 
 var compileCmd = &cobra.Command{
-	Use:   "compile <input.gmd> [input2.gmd ...]",
-	Short: "Compile one or more .gmd files to GEDCOM 5.5.1",
+	Use:   "compile <input.gmd|dir> [...]",
+	Short: "Compile .gmd files (or directories of them) to GEDCOM 5.5.1",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if outputFile == "" {
-			base := strings.TrimSuffix(filepath.Base(args[0]), filepath.Ext(args[0]))
-			outputFile = filepath.Join(filepath.Dir(args[0]), base+".ged")
+		expanded, err := expandArgs(args)
+		if err != nil {
+			return err
+		}
+		if len(expanded) == 0 {
+			return fmt.Errorf("no .gmd files found")
 		}
 
-		files, ok := parseFiles(args)
+		if outputFile == "" {
+			first := args[0]
+			if info, err := os.Stat(first); err == nil && info.IsDir() {
+				name := filepath.Base(filepath.Clean(first))
+				outputFile = filepath.Join(first, name+".ged")
+			} else {
+				base := strings.TrimSuffix(filepath.Base(first), filepath.Ext(first))
+				outputFile = filepath.Join(filepath.Dir(first), base+".ged")
+			}
+		}
+
+		files, ok := parseFiles(expanded)
 		if !ok {
 			return fmt.Errorf("parsing failed")
 		}
@@ -45,6 +59,35 @@ var compileCmd = &cobra.Command{
 			outputFile, len(res.People), len(res.Families), len(res.Sources))
 		return nil
 	},
+}
+
+// expandArgs replaces any directory arguments with the .gmd files
+// found recursively inside them. Plain file arguments are kept as-is.
+func expandArgs(args []string) ([]string, error) {
+	var result []string
+	for _, arg := range args {
+		info, err := os.Stat(arg)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", arg, err)
+		}
+		if !info.IsDir() {
+			result = append(result, arg)
+			continue
+		}
+		err = filepath.Walk(arg, func(path string, fi os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !fi.IsDir() && strings.EqualFold(filepath.Ext(path), ".gmd") {
+				result = append(result, path)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("walking %s: %w", arg, err)
+		}
+	}
+	return result, nil
 }
 
 // parseFiles lexes and parses each input file, printing errors.
