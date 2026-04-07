@@ -375,10 +375,28 @@ func parseMarriage(val string, line int) ir.Marriage {
 		if end := strings.Index(val[start:], "]"); end >= 0 {
 			m.SpouseID = val[start+1 : start+end]
 			val = strings.TrimSpace(val[start+end+1:])
+			m.Date, m.Place = parseDatePlace(val)
+			return m
 		}
 	}
 
-	m.Date, m.Place = parseDatePlace(val)
+	// No [id]: either a date-first marriage (no recorded spouse) or
+	// a plain-text spouse name. Split off the place first, then look
+	// at the left side.
+	left, place := splitOnAt(val)
+	m.Place = place
+
+	if left == "" || looksLikeDate(left) {
+		if left != "" {
+			m.Date = parseDate(left)
+		}
+		return m
+	}
+
+	// Plain-text spouse, with an optional date in parentheses.
+	desc, date := extractDescDate(left)
+	m.PlainText = desc
+	m.Date = date
 	return m
 }
 
@@ -473,6 +491,32 @@ func splitOnAt(s string) (left, right string) {
 		return strings.TrimSpace(s[:idx]), strings.TrimSpace(s[idx+1:])
 	}
 	return s, ""
+}
+
+// looksLikeDate reports whether s starts with something the date parser
+// would accept: a 4-digit year (optionally preceded by ~ < >) or a bare ?.
+// Used to disambiguate date-first marriage lines from plain-text spouse
+// names.
+func looksLikeDate(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	if s == "?" {
+		return true
+	}
+	if s[0] == '~' || s[0] == '<' || s[0] == '>' {
+		s = s[1:]
+	}
+	if len(s) < 4 {
+		return false
+	}
+	for i := 0; i < 4; i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func parseDate(s string) ir.Date {

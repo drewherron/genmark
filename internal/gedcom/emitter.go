@@ -299,6 +299,11 @@ func (e *emitter) emitFamily(fam *resolver.Family) {
 		}
 	}
 
+	// Plain-text spouse (no record linkage)
+	if fam.PlainSpouse != "" {
+		e.tag(1, "NOTE", "Spouse: "+fam.PlainSpouse)
+	}
+
 	// Children
 	for _, childID := range fam.Children {
 		e.ref(1, "CHIL", indiRef(childID))

@@ -46,6 +46,7 @@ type Family struct {
 	Children      []string                    // ordered, deduplicated child IDs
 	ChildMods     map[string]ir.ChildModifier // only set for non-biological
 	PlainChildren []PlainChild                // unlinked children (no record)
+	PlainSpouse   string                      // plain-text spouse name (no record)
 	Divorced      bool
 	DivDate   ir.Date
 	DivPlace  string
@@ -194,6 +195,26 @@ func (r *resolver) getOrCreateFamily(id1, id2 string) *Family {
 	return f
 }
 
+// createSingleParentFamily builds a fresh Family record for a marriage
+// where one spouse is named only as plain text. The known person is
+// assigned HUSB or WIFE based on their sex (defaulting to HUSB when
+// unknown), and the plain-text name is stored for emission as a NOTE
+// on the FAM. These families are intentionally not added to familyIndex
+// since they have no second ID to merge against.
+func (r *resolver) createSingleParentFamily(soloID, plainSpouse string) *Family {
+	f := &Family{
+		ChildMods:   make(map[string]ir.ChildModifier),
+		PlainSpouse: plainSpouse,
+	}
+	if r.getSex(soloID) == "F" {
+		f.WifeID = soloID
+	} else {
+		f.HusbandID = soloID
+	}
+	r.families = append(r.families, f)
+	return f
+}
+
 func (r *resolver) assignRoles(f *Family, id1, id2 string) {
 	sex1, sex2 := r.getSex(id1), r.getSex(id2)
 
@@ -227,10 +248,15 @@ func (r *resolver) buildFamilies(f *ir.File) {
 		p := &f.People[i]
 
 		for _, m := range p.Marriages {
-			if m.SpouseID == "" {
+			var fam *Family
+			switch {
+			case m.SpouseID != "":
+				fam = r.getOrCreateFamily(p.ID, m.SpouseID)
+			case m.PlainText != "":
+				fam = r.createSingleParentFamily(p.ID, m.PlainText)
+			default:
 				continue
 			}
-			fam := r.getOrCreateFamily(p.ID, m.SpouseID)
 			r.mergeMarriageInfo(fam, m, f.Filename)
 			for _, c := range m.Children {
 				r.addChild(fam, c)

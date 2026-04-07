@@ -70,13 +70,17 @@ type ChildRef struct {
 }
 
 // Marriage holds everything declared on an m: line and its children.
+// If PlainText is set, the spouse is not a linked record; the resolver
+// creates a single-parent family and the emitter writes the name as a
+// NOTE on the FAM record.
 type Marriage struct {
-	SpouseID string
-	Date     Date
-	Place    string
-	Sources  []SourceCitation
-	Children []ChildRef
-	Line     int
+	SpouseID  string
+	PlainText string // raw spouse name when no [id] reference is given
+	Date      Date
+	Place     string
+	Sources   []SourceCitation
+	Children  []ChildRef
+	Line      int
 }
 
 // Divorce holds a div: line.
