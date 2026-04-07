@@ -243,6 +243,24 @@ Emits as `1 NOTE Parents: Edward Smith, Mary Johnson` on the person's
 GEDCOM record. No family record is created. Compare with the linked form
 `parents: [edward], [mary]`, which creates or merges a FAM record.
 
+### Spouse
+
+```
+m: Jane Doe
+m: Jane Doe (1915-06-20) @ Portland, Oregon
+  > [robert_doe]
+```
+
+When the spouse is a plain-text name instead of an `[id]` reference, the
+compiler creates a single-parent FAM record (with the known person as
+HUSB or WIFE) and writes the unrecorded spouse as `1 NOTE Spouse: Jane
+Doe` on that FAM. Children listed under the marriage attach to this
+single-parent FAM normally.
+
+If the line includes a date, it must be enclosed in parentheses — same
+rule used by `occ:`, `mil:`, and `evt:` to disambiguate descriptive text
+from a leading date.
+
 ### Children
 
 ```
@@ -524,6 +542,7 @@ John Doe Sr. [john_sr]     -->  GEDCOM: John /Doe/ Sr.
 | `mil:`                | `1 EVEN` + `2 TYPE Military Service`       |
 | `evt:`                | `1 EVEN` + `2 TYPE description`            |
 | `m: [spouse]`         | `0 @F_x@ FAM` with `HUSB`/`WIFE`/`MARR`    |
+| `m: plain text`       | Single-parent FAM + `1 NOTE Spouse: ...`   |
 | `div:`                | `1 DIV` under FAM                          |
 | `> [child]`           | `1 CHIL @I_id@` under FAM                  |
 | `> [child] (adopted)` | `CHIL` + `PEDI ADOPTED` on child's `FAMC`  |
