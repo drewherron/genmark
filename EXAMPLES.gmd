@@ -200,6 +200,19 @@ Sarah Doe [sarah_doe]
   parents: Patrick Doe, Bridget O'Sullivan
 
 
+// --- Plain-Text Spouse ---
+// When a spouse is known only by name, use plain text on the m: line.
+// This creates a single-parent FAM record with the unrecorded spouse
+// as a NOTE. If a date is given it must be in parentheses.
+
+Patrick Doe [patrick_doe]
+  sex: M
+  b: ~1825 @ County Kerry, Ireland
+  m: Bridget O'Sullivan (1849) @ Tralee, County Kerry
+    > [sarah_doe]
+    > Michael Doe
+
+
 // --- Inline Source Citations ---
 
 Thomas Doe [thomas_doe]
