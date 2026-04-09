@@ -102,7 +102,7 @@ func (e *emitter) ref(level int, tag, xref string) {
 func (e *emitter) header() {
 	e.tag(0, "HEAD")
 	e.tag(1, "SOUR", "GENMARK")
-	e.tag(2, "VERS", "0.1")
+	e.tag(2, "VERS", "0.2")
 	e.tag(2, "NAME", "Genmark")
 	e.tag(1, "GEDC")
 	e.tag(2, "VERS", "5.5.1")

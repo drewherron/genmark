@@ -2,7 +2,7 @@
 
 ;; Author: Drew Herron
 ;; URL: https://github.com/drewherron/genmark
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Keywords: languages, genealogy
 ;; Package-Requires: ((emacs "25.1"))
 
