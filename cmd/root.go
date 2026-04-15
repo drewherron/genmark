@@ -13,6 +13,10 @@ var rootCmd = &cobra.Command{
 	Long:  "Genmark compiles .gmd genealogy markup files to GEDCOM 5.5.1.",
 }
 
+func SetVersionInfo(version, buildTime, gitCommit string) {
+	rootCmd.Version = fmt.Sprintf("%s (built %s, commit %s)", version, buildTime, gitCommit)
+}
+
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
