@@ -2,7 +2,7 @@
   "name": "genmark",
   "displayName": "Genmark",
   "description": "Language support for Genmark (.gmd) genealogy files",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "drewherron",
   "repository": {
     "type": "git",

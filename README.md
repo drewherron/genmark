@@ -65,9 +65,9 @@ make it executable if necessary, and place it somewhere on your PATH:
 chmod +x genmark-linux-amd64
 sudo mv genmark-linux-amd64 /usr/local/bin/genmark
 
-# macOS
-chmod +x genmark-darwin-arm64
-sudo mv genmark-darwin-arm64 /usr/local/bin/genmark
+# macOS (Apple Silicon; use genmark-macos-intel on Intel Macs)
+chmod +x genmark-macos-arm64
+sudo mv genmark-macos-arm64 /usr/local/bin/genmark
 
 # Windows: rename genmark-windows-amd64.exe to genmark.exe
 # and place it in a directory on your PATH
@@ -86,9 +86,13 @@ Or clone and build:
 ```
 git clone https://github.com/drewherron/genmark.git
 cd genmark
-go build -o genmark .
+make build
 ```
 
+This produces a binary executable `./genmark`. You can also use `make
+release-all` to cross-compile binaries for all supported platforms
+into `dist/`.
+ 
 ## Usage
 
 ### Compile
