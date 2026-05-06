@@ -247,9 +247,11 @@ func (e *emitter) emitEvent(evt ir.Event) {
 		if gedTag == "" {
 			gedTag = strings.ToUpper(evt.Tag)
 		}
-		dateStr := formatDate(evt.Date)
 		e.tag(1, gedTag)
-		if dateStr != "" {
+		if evt.Desc != "" {
+			e.tag(2, "TYPE", evt.Desc)
+		}
+		if dateStr := formatDate(evt.Date); dateStr != "" {
 			e.tag(2, "DATE", dateStr)
 		}
 		if evt.Place != "" {

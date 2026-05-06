@@ -185,14 +185,8 @@ func (p *parser) personField(tok *lexer.Token) {
 		p.person.Aliases = append(p.person.Aliases, val)
 	case "sex":
 		p.person.Sex = strings.TrimSpace(val)
-	case "b", "d", "chr", "bur", "imm", "res", "bap", "nat", "emi", "crm", "cen":
+	case "b", "d", "chr", "bur", "imm", "res", "bap", "nat", "emi", "crm", "cen", "mil", "occ", "evt":
 		p.person.Events = append(p.person.Events, p.parseEvent(tag, val, tok.Line))
-	case "mil":
-		p.person.Events = append(p.person.Events, p.parseMil(val, tok.Line))
-	case "occ":
-		p.person.Events = append(p.person.Events, p.parseOcc(val, tok.Line))
-	case "evt":
-		p.person.Events = append(p.person.Events, p.parseEvt(val, tok.Line))
 	case "m":
 		m := p.parseMarriage(val, tok.Line)
 		p.person.Marriages = append(p.person.Marriages, m)
@@ -323,46 +317,47 @@ func parseChildRefValue(text string, line int) ir.ChildRef {
 	return ref
 }
 
+// parseEvent handles every event field with the unified grammar:
+//
+//	[description] [(date) | bare-date] [@ place]
+//
+// Parens are required when both description and date appear on the same
+// line; with a bare leading date (and no description), parens are
+// optional. All three components are optional; what makes sense
+// depends on the field.
 func (p *parser) parseEvent(tag, val string, line int) ir.Event {
 	evt := ir.Event{Tag: tag, Line: line}
 	val, evt.Sources = extractSourceCitations(val)
-	evt.Date, evt.Place = p.parseDatePlace(line, val)
-	return evt
-}
-
-func (p *parser) parseMil(val string, line int) ir.Event {
-	evt := ir.Event{Tag: "mil", Line: line}
-	val, evt.Sources = extractSourceCitations(val)
 
 	left, place := splitOnAt(val)
 	evt.Place = place
-	evt.Desc, evt.Date = p.extractDescDate(line, left)
-	return evt
-}
 
-func (p *parser) parseOcc(val string, line int) ir.Event {
-	evt := ir.Event{Tag: "occ", Line: line}
-	val, evt.Sources = extractSourceCitations(val)
-
-	left, place := splitOnAt(val)
-	evt.Place = place
-	evt.Desc, evt.Date = p.extractDescDate(line, left)
+	if pStart := strings.Index(left, "("); pStart >= 0 {
+		// Description-with-parenthesized-date form.
+		if pEnd := strings.Index(left[pStart:], ")"); pEnd >= 0 {
+			dateStr := strings.TrimSpace(left[pStart+1 : pStart+pEnd])
+			before := strings.TrimRight(left[:pStart], " ")
+			after := left[pStart+pEnd+1:]
+			evt.Desc = strings.TrimSpace(before + after)
+			if dateStr != "" {
+				evt.Date = p.parseDate(line, dateStr)
+			}
+		} else {
+			evt.Desc = strings.TrimSpace(left)
+		}
+	} else if left != "" {
+		if looksLikeDate(left) {
+			evt.Date = p.parseDate(line, left)
+		} else {
+			evt.Desc = left
+		}
+	}
 
 	// For occupations, a range date represents the period held.
-	if evt.Date.Modifier == ir.ModRange {
+	if tag == "occ" && evt.Date.Modifier == ir.ModRange {
 		evt.Period = &ir.DateRange{From: evt.Date.From, To: evt.Date.To}
 		evt.Date = ir.Date{}
 	}
-	return evt
-}
-
-func (p *parser) parseEvt(val string, line int) ir.Event {
-	evt := ir.Event{Tag: "evt", Line: line}
-	val, evt.Sources = extractSourceCitations(val)
-
-	left, place := splitOnAt(val)
-	evt.Place = place
-	evt.Desc, evt.Date = p.extractDescDate(line, left)
 	return evt
 }
 
@@ -526,6 +521,15 @@ func (p *parser) parseDate(line int, s string) ir.Date {
 	}
 	if s == "?" {
 		return ir.Date{Modifier: ir.ModUnknown}
+	}
+	// Strip an outer pair of parens. This lets `(date)` work as a
+	// synonym for a bare date in places where no description is present
+	// (e.g. `m: [id] (1721-10-20) @ ...`), parallel to the optional
+	// parens around dates in the unified event grammar.
+	if len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
+		if inner := strings.TrimSpace(s[1 : len(s)-1]); inner != "" {
+			return p.parseDate(line, inner)
+		}
 	}
 	if parts := strings.SplitN(s, "..", 2); len(parts) == 2 {
 		from := strings.TrimSpace(parts[0])
