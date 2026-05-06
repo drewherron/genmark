@@ -186,20 +186,20 @@ func (p *parser) personField(tok *lexer.Token) {
 	case "sex":
 		p.person.Sex = strings.TrimSpace(val)
 	case "b", "d", "chr", "bur", "imm", "res", "bap", "nat", "emi", "crm", "cen":
-		p.person.Events = append(p.person.Events, parseEvent(tag, val, tok.Line))
+		p.person.Events = append(p.person.Events, p.parseEvent(tag, val, tok.Line))
 	case "mil":
-		p.person.Events = append(p.person.Events, parseMil(val, tok.Line))
+		p.person.Events = append(p.person.Events, p.parseMil(val, tok.Line))
 	case "occ":
-		p.person.Events = append(p.person.Events, parseOcc(val, tok.Line))
+		p.person.Events = append(p.person.Events, p.parseOcc(val, tok.Line))
 	case "evt":
-		p.person.Events = append(p.person.Events, parseEvt(val, tok.Line))
+		p.person.Events = append(p.person.Events, p.parseEvt(val, tok.Line))
 	case "m":
-		m := parseMarriage(val, tok.Line)
+		m := p.parseMarriage(val, tok.Line)
 		p.person.Marriages = append(p.person.Marriages, m)
 		p.marriage = &p.person.Marriages[len(p.person.Marriages)-1]
 		p.mIndent = tok.Indent
 	case "div":
-		p.person.Divorces = append(p.person.Divorces, parseDivorce(val, tok.Line))
+		p.person.Divorces = append(p.person.Divorces, p.parseDivorce(val, tok.Line))
 	case "parents":
 		p.person.Parents = append(p.person.Parents, parseParents(val, tok.Line))
 	case "maybe":
@@ -282,7 +282,7 @@ func (p *parser) unionField(tok *lexer.Token) {
 		return
 	}
 	if tag == "m" {
-		m := parseUnionMarriage(val, tok.Line)
+		m := p.parseUnionMarriage(val, tok.Line)
 		p.union.Marriage = &m
 		p.marriage = p.union.Marriage
 		p.mIndent = tok.Indent
@@ -323,30 +323,30 @@ func parseChildRefValue(text string, line int) ir.ChildRef {
 	return ref
 }
 
-func parseEvent(tag, val string, line int) ir.Event {
+func (p *parser) parseEvent(tag, val string, line int) ir.Event {
 	evt := ir.Event{Tag: tag, Line: line}
 	val, evt.Sources = extractSourceCitations(val)
-	evt.Date, evt.Place = parseDatePlace(val)
+	evt.Date, evt.Place = p.parseDatePlace(line, val)
 	return evt
 }
 
-func parseMil(val string, line int) ir.Event {
+func (p *parser) parseMil(val string, line int) ir.Event {
 	evt := ir.Event{Tag: "mil", Line: line}
 	val, evt.Sources = extractSourceCitations(val)
 
 	left, place := splitOnAt(val)
 	evt.Place = place
-	evt.Desc, evt.Date = extractDescDate(left)
+	evt.Desc, evt.Date = p.extractDescDate(line, left)
 	return evt
 }
 
-func parseOcc(val string, line int) ir.Event {
+func (p *parser) parseOcc(val string, line int) ir.Event {
 	evt := ir.Event{Tag: "occ", Line: line}
 	val, evt.Sources = extractSourceCitations(val)
 
 	left, place := splitOnAt(val)
 	evt.Place = place
-	evt.Desc, evt.Date = extractDescDate(left)
+	evt.Desc, evt.Date = p.extractDescDate(line, left)
 
 	// For occupations, a range date represents the period held.
 	if evt.Date.Modifier == ir.ModRange {
@@ -356,17 +356,17 @@ func parseOcc(val string, line int) ir.Event {
 	return evt
 }
 
-func parseEvt(val string, line int) ir.Event {
+func (p *parser) parseEvt(val string, line int) ir.Event {
 	evt := ir.Event{Tag: "evt", Line: line}
 	val, evt.Sources = extractSourceCitations(val)
 
 	left, place := splitOnAt(val)
 	evt.Place = place
-	evt.Desc, evt.Date = extractDescDate(left)
+	evt.Desc, evt.Date = p.extractDescDate(line, left)
 	return evt
 }
 
-func parseMarriage(val string, line int) ir.Marriage {
+func (p *parser) parseMarriage(val string, line int) ir.Marriage {
 	m := ir.Marriage{Line: line}
 	val, m.Sources = extractSourceCitations(val)
 
@@ -375,7 +375,7 @@ func parseMarriage(val string, line int) ir.Marriage {
 		if end := strings.Index(val[start:], "]"); end >= 0 {
 			m.SpouseID = val[start+1 : start+end]
 			val = strings.TrimSpace(val[start+end+1:])
-			m.Date, m.Place = parseDatePlace(val)
+			m.Date, m.Place = p.parseDatePlace(line, val)
 			return m
 		}
 	}
@@ -388,26 +388,26 @@ func parseMarriage(val string, line int) ir.Marriage {
 
 	if left == "" || looksLikeDate(left) {
 		if left != "" {
-			m.Date = parseDate(left)
+			m.Date = p.parseDate(line, left)
 		}
 		return m
 	}
 
 	// Plain-text spouse, with an optional date in parentheses.
-	desc, date := extractDescDate(left)
+	desc, date := p.extractDescDate(line, left)
 	m.PlainText = desc
 	m.Date = date
 	return m
 }
 
-func parseUnionMarriage(val string, line int) ir.Marriage {
+func (p *parser) parseUnionMarriage(val string, line int) ir.Marriage {
 	m := ir.Marriage{Line: line}
 	val, m.Sources = extractSourceCitations(val)
-	m.Date, m.Place = parseDatePlace(val)
+	m.Date, m.Place = p.parseDatePlace(line, val)
 	return m
 }
 
-func parseDivorce(val string, line int) ir.Divorce {
+func (p *parser) parseDivorce(val string, line int) ir.Divorce {
 	d := ir.Divorce{Line: line}
 	val, d.Sources = extractSourceCitations(val)
 
@@ -418,7 +418,7 @@ func parseDivorce(val string, line int) ir.Divorce {
 		}
 	}
 
-	d.Date, d.Place = parseDatePlace(val)
+	d.Date, d.Place = p.parseDatePlace(line, val)
 	return d
 }
 
@@ -456,7 +456,7 @@ func parseMaybe(val string, line int) ir.MaybeLink {
 
 // --- date / place / source parsing ---
 
-func parseDatePlace(s string) (ir.Date, string) {
+func (p *parser) parseDatePlace(line int, s string) (ir.Date, string) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ir.Date{}, ""
@@ -464,7 +464,7 @@ func parseDatePlace(s string) (ir.Date, string) {
 	dateStr, place := splitOnAt(s)
 	var d ir.Date
 	if dateStr != "" {
-		d = parseDate(dateStr)
+		d = p.parseDate(line, dateStr)
 	}
 	return d, place
 }
@@ -472,14 +472,14 @@ func parseDatePlace(s string) (ir.Date, string) {
 // extractDescDate splits "Description (date)" into description and date.
 // Used by description-first fields (occ, mil, evt).
 // Handles trailing text: "US Army (1945..1947), MP" → "US Army, MP"
-func extractDescDate(s string) (string, ir.Date) {
+func (p *parser) extractDescDate(line int, s string) (string, ir.Date) {
 	s = strings.TrimSpace(s)
 	if pStart := strings.Index(s, "("); pStart >= 0 {
 		if pEnd := strings.Index(s[pStart:], ")"); pEnd >= 0 {
 			dateStr := strings.TrimSpace(s[pStart+1 : pStart+pEnd])
 			before := strings.TrimRight(s[:pStart], " ")
 			after := s[pStart+pEnd+1:]
-			return strings.TrimSpace(before + after), parseDate(dateStr)
+			return strings.TrimSpace(before + after), p.parseDate(line, dateStr)
 		}
 	}
 	return s, ir.Date{}
@@ -519,7 +519,7 @@ func looksLikeDate(s string) bool {
 	return true
 }
 
-func parseDate(s string) ir.Date {
+func (p *parser) parseDate(line int, s string) ir.Date {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ir.Date{}
@@ -528,11 +528,27 @@ func parseDate(s string) ir.Date {
 		return ir.Date{Modifier: ir.ModUnknown}
 	}
 	if parts := strings.SplitN(s, "..", 2); len(parts) == 2 {
-		return ir.Date{
-			Modifier: ir.ModRange,
-			From:     strings.TrimSpace(parts[0]),
-			To:       strings.TrimSpace(parts[1]),
+		from := strings.TrimSpace(parts[0])
+		to := strings.TrimSpace(parts[1])
+		// Open-ended ranges aren't allowed: GEDCOM 5.5.1 expresses
+		// "before/after a date" with BEF/AFT, not an open BET..AND.
+		switch {
+		case from == "" || to == "" || from == "?" || to == "?":
+			// Open-ended ranges aren't allowed: GEDCOM 5.5.1 expresses
+			// "before/after a date" with BEF/AFT, not an open BET..AND.
+			p.errorf(line, "open-ended date range %q is not allowed; use <YYYY (before) or >YYYY (after) instead", s)
+		case hasDateModifier(from) || hasDateModifier(to):
+			// GEDCOM 5.5.1 BET <DATE> AND <DATE> takes plain dates;
+			// ABT/CAL/EST cannot appear inside a range. A range
+			// already conveys imprecision.
+			p.errorf(line, "modifiers (~ < >) are not allowed on range endpoints in %q; a range already implies imprecision -- write %s..%s", s, stripDateModifier(from), stripDateModifier(to))
+		case !looksLikeDate(from) || !looksLikeDate(to):
+			p.errorf(line, "invalid date range %q: each endpoint must be a year (e.g., 1888..1895)", s)
 		}
+		return ir.Date{Modifier: ir.ModRange, From: from, To: to}
+	}
+	if !looksLikeDate(s) {
+		p.errorf(line, "invalid date %q: expected a year like 1888 or 1888-05-15. Prefix a place with @ (e.g., \"@ Boston, Massachusetts\")", s)
 	}
 	if strings.HasPrefix(s, "~") {
 		return ir.Date{Modifier: ir.ModAbout, From: strings.TrimSpace(s[1:])}
@@ -544,6 +560,21 @@ func parseDate(s string) ir.Date {
 		return ir.Date{Modifier: ir.ModAfter, From: strings.TrimSpace(s[1:])}
 	}
 	return ir.Date{Modifier: ir.ModNone, From: s}
+}
+
+func hasDateModifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	c := s[0]
+	return c == '~' || c == '<' || c == '>'
+}
+
+func stripDateModifier(s string) string {
+	if hasDateModifier(s) {
+		return strings.TrimSpace(s[1:])
+	}
+	return s
 }
 
 func extractSourceCitations(val string) (string, []ir.SourceCitation) {
