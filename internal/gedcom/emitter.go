@@ -234,8 +234,8 @@ func (e *emitter) emitEvent(evt ir.Event) {
 		} else {
 			e.tag(1, "OCCU")
 		}
-		if evt.Period != nil {
-			e.tag(2, "DATE", "BET "+isoToGedcom(evt.Period.From)+" AND "+isoToGedcom(evt.Period.To))
+		if dateStr := formatDate(evt.Date); dateStr != "" {
+			e.tag(2, "DATE", dateStr)
 		}
 		if evt.Place != "" {
 			e.tag(2, "PLAC", evt.Place)

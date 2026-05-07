@@ -353,11 +353,6 @@ func (p *parser) parseEvent(tag, val string, line int) ir.Event {
 		}
 	}
 
-	// For occupations, a range date represents the period held.
-	if tag == "occ" && evt.Date.Modifier == ir.ModRange {
-		evt.Period = &ir.DateRange{From: evt.Date.From, To: evt.Date.To}
-		evt.Date = ir.Date{}
-	}
 	return evt
 }
 

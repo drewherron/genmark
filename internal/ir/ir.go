@@ -38,16 +38,9 @@ type Event struct {
 	Tag     string // b, d, chr, bur, imm, res, mil, occ, evt, div
 	Date    Date
 	Place   string
-	Desc    string          // for evt: and mil: free-form prefix; for occ: the occupation name
-	Period  *DateRange      // for occ/res contextual ranges: (1910..1920)
+	Desc    string // optional free-form description; on occ: the occupation name
 	Sources []SourceCitation
 	Line    int
-}
-
-// DateRange is a contextual period used on occ and res lines.
-type DateRange struct {
-	From string
-	To   string
 }
 
 // ChildRef is a child listed under a marriage or union block.
