@@ -358,18 +358,27 @@ func (e *emitter) emitNote(level int, text string) {
 
 // --- name formatting ---
 
-// formatName converts "John Arthur Doe" to "John Arthur /Doe/"
-// and handles suffixes: "John Doe Sr." becomes "John /Doe/ Sr."
+// formatName converts a display name to GEDCOM `Given /Surname/` form.
+// If the name contains a /surname/ marker, that marker delimits the
+// surname exactly. Otherwise a heuristic treats the last word (before
+// any recognized suffix) as the surname.
 func formatName(displayName string) string {
-	parts := strings.Fields(displayName)
-	if len(parts) == 0 {
+	displayName = strings.TrimSpace(displayName)
+	if displayName == "" {
 		return ""
 	}
+
+	// Explicit /surname/ form -- pass through verbatim, just normalize spaces.
+	if first, last := strings.Index(displayName, "/"), strings.LastIndex(displayName, "/"); first >= 0 && last > first {
+		return strings.Join(strings.Fields(displayName), " ")
+	}
+
+	parts := strings.Fields(displayName)
 	if len(parts) == 1 {
 		return "/" + parts[0] + "/"
 	}
 
-	// Check for trailing suffix(es)
+	// Heuristic: peel trailing suffixes, treat last remaining word as surname.
 	var suffixes []string
 	for len(parts) > 2 {
 		last := parts[len(parts)-1]
