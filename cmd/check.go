@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/drewherron/genmark/internal/ir"
 	"github.com/drewherron/genmark/internal/resolver"
 	"github.com/spf13/cobra"
 )
@@ -38,6 +40,7 @@ var checkCmd = &cobra.Command{
 
 		fmt.Printf("%d people, %d families, %d sources\n",
 			len(res.People), len(res.Families), len(res.Sources))
+		printSpeculativeLinks(files)
 		if errors > 0 {
 			return fmt.Errorf("check failed: %d error(s), %d warning(s)", errors, warnings)
 		}
@@ -48,4 +51,37 @@ var checkCmd = &cobra.Command{
 		}
 		return nil
 	},
+}
+
+// printSpeculativeLinks lists every `maybe:` entry across the parsed files
+// so the user has a research to-do list. These never reach GEDCOM.
+func printSpeculativeLinks(files []*ir.File) {
+	type entry struct {
+		file, name, body string
+		line             int
+	}
+	var entries []entry
+	for _, f := range files {
+		for i := range f.People {
+			p := &f.People[i]
+			for _, ml := range p.MaybeLinks {
+				body := ml.Relation
+				if len(ml.IDs) > 0 {
+					refs := make([]string, len(ml.IDs))
+					for i, id := range ml.IDs {
+						refs[i] = "[" + id + "]"
+					}
+					body = strings.TrimSpace(body + " " + strings.Join(refs, ", "))
+				}
+				entries = append(entries, entry{f.Filename, p.DisplayName, body, ml.Line})
+			}
+		}
+	}
+	if len(entries) == 0 {
+		return
+	}
+	fmt.Printf("%d speculative link(s):\n", len(entries))
+	for _, e := range entries {
+		fmt.Printf("  %s:%d  %s — %s\n", e.file, e.line, e.name, e.body)
+	}
 }
