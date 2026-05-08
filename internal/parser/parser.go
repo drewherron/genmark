@@ -184,7 +184,12 @@ func (p *parser) personField(tok *lexer.Token) {
 	case "aka":
 		p.person.Aliases = append(p.person.Aliases, val)
 	case "sex":
-		p.person.Sex = strings.TrimSpace(val)
+		s := strings.TrimSpace(val)
+		if s == "?" {
+			p.errorf(tok.Line, "\"?\" is only meaningful on d: (deceased, no details); on sex:, omit the field if the value is unknown")
+			return
+		}
+		p.person.Sex = s
 	case "b", "d", "chr", "bur", "imm", "res", "bap", "nat", "emi", "crm", "cen", "mil", "occ", "evt":
 		p.person.Events = append(p.person.Events, p.parseEvent(tag, val, tok.Line))
 	case "m":
@@ -353,6 +358,10 @@ func (p *parser) parseEvent(tag, val string, line int) ir.Event {
 		}
 	}
 
+	if tag != "d" {
+		p.rejectUnknownDate(evt.Date, line, tag)
+	}
+
 	return evt
 }
 
@@ -366,6 +375,7 @@ func (p *parser) parseMarriage(val string, line int) ir.Marriage {
 			m.SpouseID = val[start+1 : start+end]
 			val = strings.TrimSpace(val[start+end+1:])
 			m.Date, m.Place = p.parseDatePlace(line, val)
+			p.rejectUnknownDate(m.Date, line, "m")
 			return m
 		}
 	}
@@ -380,6 +390,7 @@ func (p *parser) parseMarriage(val string, line int) ir.Marriage {
 		if left != "" {
 			m.Date = p.parseDate(line, left)
 		}
+		p.rejectUnknownDate(m.Date, line, "m")
 		return m
 	}
 
@@ -387,6 +398,7 @@ func (p *parser) parseMarriage(val string, line int) ir.Marriage {
 	desc, date := p.extractDescDate(line, left)
 	m.PlainText = desc
 	m.Date = date
+	p.rejectUnknownDate(m.Date, line, "m")
 	return m
 }
 
@@ -394,7 +406,16 @@ func (p *parser) parseUnionMarriage(val string, line int) ir.Marriage {
 	m := ir.Marriage{Line: line}
 	val, m.Sources = extractSourceCitations(val)
 	m.Date, m.Place = p.parseDatePlace(line, val)
+	p.rejectUnknownDate(m.Date, line, "m")
 	return m
+}
+
+// rejectUnknownDate flags `?` used as a date on a field where it has
+// no GEDCOM meaning. Only `d: ?` carries a special semantic (`1 DEAT Y`).
+func (p *parser) rejectUnknownDate(d ir.Date, line int, tag string) {
+	if d.Modifier == ir.ModUnknown {
+		p.errorf(line, "\"?\" is only meaningful on d: (deceased, no details); on %s:, omit the field if the value is unknown", tag)
+	}
 }
 
 func (p *parser) parseDivorce(val string, line int) ir.Divorce {
@@ -409,6 +430,7 @@ func (p *parser) parseDivorce(val string, line int) ir.Divorce {
 	}
 
 	d.Date, d.Place = p.parseDatePlace(line, val)
+	p.rejectUnknownDate(d.Date, line, "div")
 	return d
 }
 
