@@ -27,4 +27,5 @@ func Execute() {
 func init() {
 	rootCmd.AddCommand(compileCmd)
 	rootCmd.AddCommand(checkCmd)
+	rootCmd.AddCommand(todoCmd)
 }

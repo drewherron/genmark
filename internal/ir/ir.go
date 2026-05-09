@@ -102,6 +102,13 @@ type MaybeLink struct {
 	Line     int
 }
 
+// Todo is a research-task reminder (todo: text). Never emitted to
+// GEDCOM; surfaced by `genmark todo`.
+type Todo struct {
+	Text string
+	Line int
+}
+
 // Note is either a single-line or multi-line note: block.
 type Note struct {
 	Text string // newlines preserved for multi-line notes
@@ -126,6 +133,7 @@ type Person struct {
 	Divorces    []Divorce     // div: lines
 	Parents     []ParentRef   // parents: lines
 	MaybeLinks  []MaybeLink   // maybe: lines
+	Todos       []Todo        // todo: lines
 	Notes       []Note        // note: lines
 	Sources     []PersonSource // bare src: lines
 	Line        int

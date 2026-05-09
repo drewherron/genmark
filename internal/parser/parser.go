@@ -203,6 +203,8 @@ func (p *parser) personField(tok *lexer.Token) {
 		p.person.Parents = append(p.person.Parents, parseParents(val, tok.Line))
 	case "maybe":
 		p.person.MaybeLinks = append(p.person.MaybeLinks, parseMaybe(val, tok.Line))
+	case "todo":
+		p.person.Todos = append(p.person.Todos, ir.Todo{Text: strings.TrimSpace(val), Line: tok.Line})
 	case "note":
 		if strings.TrimSpace(val) == "|" {
 			p.inNote = true

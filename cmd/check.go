@@ -40,7 +40,7 @@ var checkCmd = &cobra.Command{
 
 		fmt.Printf("%d people, %d families, %d sources\n",
 			len(res.People), len(res.Families), len(res.Sources))
-		printSpeculativeLinks(files)
+		printSpeculativeItems(files)
 		if errors > 0 {
 			return fmt.Errorf("check failed: %d error(s), %d warning(s)", errors, warnings)
 		}
@@ -53,9 +53,10 @@ var checkCmd = &cobra.Command{
 	},
 }
 
-// printSpeculativeLinks lists every `maybe:` entry across the parsed files
-// so the user has a research to-do list. These never reach GEDCOM.
-func printSpeculativeLinks(files []*ir.File) {
+// printSpeculativeItems lists every `maybe:` entry across the parsed
+// files. These never reach GEDCOM but give the researcher a running
+// list of unverified facts and relationships to follow up on.
+func printSpeculativeItems(files []*ir.File) {
 	type entry struct {
 		file, name, body string
 		line             int
@@ -80,7 +81,7 @@ func printSpeculativeLinks(files []*ir.File) {
 	if len(entries) == 0 {
 		return
 	}
-	fmt.Printf("%d speculative link(s):\n", len(entries))
+	fmt.Printf("%d speculative item(s):\n", len(entries))
 	for _, e := range entries {
 		fmt.Printf("  %s:%d  %s — %s\n", e.file, e.line, e.name, e.body)
 	}
