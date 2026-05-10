@@ -8,9 +8,9 @@ Genmark files use the `.gmd` extension.
 
 ## Why?
 
-GEDCOM is the universal format for sharing family trees between software, but it
-was designed for machines, not people. A single person with a birth date and
-place looks like this:
+GEDCOM is the universal format for sharing family trees between
+software, but it was designed for machines, not people. A single
+person with a birth date and place looks like this:
 
 ```
 0 @I_mary_smith@ INDI
@@ -34,21 +34,24 @@ Mary Ellen Smith [mary_smith]
   d: 1978-02-28 @ Portland, Oregon
 ```
 
-The idea is that a Genmark file can be the actual repository of your research
-data, not just an import/export format for some application. When you come
-across a new source, or person, or information about a person, just add it
-directly to the file in the appropriate place. Because it's plain text, your
-data works with any editor, plays well with version control, and is easy to
-diff/grep/etc - but unlike other plain-text formats, it's also easy to read.
+The idea is that a Genmark file can be the actual repository of your
+research data, not just an import/export format for some
+application. When you come across a new source, or person, or
+information about a person, just add it directly to the file in the
+appropriate place. Because it's plain text, your data works with any
+editor, plays well with version control, and is easy to
+diff/grep/etc - but unlike other plain-text formats, it's also easy to
+read.
 
 Genmark can also compile multiple `.gmd` files into a single GEDCOM
-file. References to people and sources are resolved across all files. This means
-you can organize your genealogical data however you want. You could keep a
-separate file per individual person, or break it up by branch of the family
-tree, or by state, or country, or generation, etc. For situations where you have
-a large amount of material to organize, you could even devote a separate
-subdirectory to each person, filling it with images and documents related to
-them, including a `.gmd` file. Genmark can compile recursively through
+file. References to people and sources are resolved across all
+files. This means you can organize your genealogical data however you
+want. You could keep a separate file per individual person, or break
+it up by branch of the family tree, or by state, or country, or
+generation, etc. For situations where you have a large amount of
+material to organize, you could even devote a separate subdirectory to
+each person, filling it with images and documents related to them,
+including a `.gmd` file. Genmark can compile recursively through
 subdirectories.
 
 ## Installation
@@ -56,9 +59,10 @@ subdirectories.
 ### Download
 
 Pre-built binaries are available on the
-[Releases](https://github.com/drewherron/genmark/releases) page for Linux,
-macOS (Intel and Apple Silicon), and Windows. Download the appropriate file,
-make it executable if necessary, and place it somewhere on your PATH:
+[Releases](https://github.com/drewherron/genmark/releases) page for
+Linux, macOS (Intel and Apple Silicon), and Windows. Download the
+appropriate file, make it executable if necessary, and place it
+somewhere on your PATH:
 
 ```
 # Linux
@@ -137,7 +141,20 @@ genmark check family.gmd
 ```
 
 Reports errors (undefined references, conflicting data) and warnings
-(speculative links, unused sources) with line numbers and filenames.
+(unused sources, undefined `maybe:` targets) with line numbers and
+filenames. Also lists every `maybe:` speculative item across the input,
+giving you a running list of unverified facts to follow up on.
+
+### Todo
+
+List research reminders without running a full check:
+
+```
+genmark todo family.gmd
+```
+
+Prints every `todo:` line across your files with location info, so you
+can pick up where you left off.
 
 ## Quick Example
 
@@ -146,7 +163,7 @@ source [src_census]
   title: 1920 United States Federal Census
   repo: National Archives, Washington, D.C.
 
-Mary Ellen Smith [mary_smith]
+Mary Ellen /Smith/ [mary_smith]
   sex: F
   b: 1895-03 @ Portland, Oregon
   d: 1978-02-28 @ Portland, Oregon
@@ -172,7 +189,7 @@ Alice Doe [alice_doe]
 A single example using most available fields:
 
 ```
-// Here's a comment!
+// My great-granfather
 John Arthur Doe Sr. [john_doe]
   aka: Jack Doe
   sex: M
@@ -182,7 +199,8 @@ John Arthur Doe Sr. [john_doe]
   res: 1920 @ Portland, Multnomah, Oregon
   cen: 1920-01-05 @ Portland, Multnomah, Oregon  [src: src_census]
   occ: Carpenter (1910..1920) @ Brooklyn, New York
-  mil: US Army (1917..1919), 26th Infantry Division
+  todo: Try to find when he moved to Portland
+  mil: US Army, 26th Infantry Division (1917..1919)
   evt: Graduated summa cum laude (1912-06) @ Columbia University, New York
   m: [mary_smith] 1915-06-20 @ Portland, Oregon
     > [robert_doe]
@@ -195,10 +213,19 @@ John Arthur Doe Sr. [john_doe]
   bur: @ River View Cemetery, Portland, Oregon
   note: Known in the community as "Jack."
   src: https://www.findagrave.com/memorial/12345/john-doe
-  /* Multiline block
-     comments are
-     also allowed */
+  /* He probably would have
+     been a big fan of
+     multiline block
+     comments */
 ```
+
+Note the optional slashes around `Smith` on the header line. Wrapping
+the surname in slashes is recommended whenever the surname isn't a
+simple single trailing word - multi-word surnames, particles like `van
+der`, hyphenated names, or surname-first orders. Without slashes the
+compiler falls back to a heuristic that treats the last word as the
+surname (excluding common suffixes like `Jr.`), which works for the
+simple case but can mangle the others.
 
 See [SYNTAX.md](SYNTAX.md) for the full language reference and
 [EXAMPLES.gmd](EXAMPLES.gmd) for a working file demonstrating every feature.
@@ -230,14 +257,15 @@ charts or diagrams:
 - [Gramps](https://gramps-project.org/) has built-in tree and fan charts
 - [GEDkeeper](https://gedkeeper.net/) (free, Windows/Linux)
 
-**Share with family.** A `.ged` file is the standard way to send a family
-tree to a relative who uses different software than you. Any genealogy
-application should be able to open it.
+**Share with family.** A `.ged` file is the standard way to send a
+family tree to a relative who uses different software than you. Any
+genealogy application should be able to open it.
 
 ## Editor Support
 
-Syntax highlighting, folding, and indentation are available for Emacs, Vim, and
-VS Code. See the [editor/](editor/) directory for installation instructions.
+Syntax highlighting, folding, and indentation are available for Emacs,
+Vim, and VS Code. See the [editor/](editor/) directory for
+installation instructions.
 
 ## License
 
