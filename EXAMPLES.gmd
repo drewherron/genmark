@@ -41,9 +41,10 @@ John Arthur Doe Sr. [john_doe]
   nat: 1905-03-15 @ Brooklyn, Kings, New York
   occ: Carpenter @ Brooklyn, New York
   occ: Factory Foreman (1921..1945) @ Portland, Oregon
-  mil: US Army (1917..1919), 26th Infantry Division
+  mil: US Army, 26th Infantry Division (1917..1919)
   evt: Graduated summa cum laude (1912-06) @ Columbia University, New York
   m: [mary_smith] 1915-06-20 @ Portland, Oregon
+  // Forward reference -- Mary isn't defined yet, but that's fine
     > [robert_doe]
     > [alice_doe]
     > [william_doe]
@@ -55,7 +56,7 @@ John Arthur Doe Sr. [john_doe]
   note: Known in the community as "Jack."
   note: |
     Family bible records his middle name as "Arthur" but his birth
-    certificate reads "Aurthur" -- likely a clerical error.
+    certificate reads "Artur" -- likely a clerical error.
 
     The 1920 census lists the family at 412 SE Pine Street, Portland.
   src: https://www.findagrave.com/memorial/12345/john-doe
@@ -131,7 +132,6 @@ Susan Marie Doe [susan_doe]
 Alice Jane Doe [alice_doe]
   sex: F
   b: 1918 @ Portland, Oregon
-  // Forward reference -- Henry isn't defined yet, but that's fine
   m: [henry_wilson]
     > [frank_wilson]
     > [grace_wilson]
@@ -187,6 +187,8 @@ Isaac Doe [isaac_doe]
   maybe: father [edward_doe]
   // Plain-text speculative relationship (no record to link to)
   maybe: cousin Samuel Doe of Richmond
+  // Research reminder -- listed by `genmark todo`, not emitted to GEDCOM
+  todo: Check Kentucky probate records for 1849 to confirm parentage
   note: Parentage uncertain. Edward Doe proposed as father but not verified.
 
 
@@ -201,9 +203,11 @@ Sarah Doe [sarah_doe]
 
 
 // --- Plain-Text Spouse ---
-// When a spouse is known only by name, use plain text on the m: line.
-// This creates a single-parent FAM record with the unrecorded spouse
-// as a NOTE. If a date is given it must be in parentheses.
+// You can also use plain text on the m: line, when the spouse won't
+// get their own data block. This creates a single-parent FAM record
+// with the unrecorded spouse as a NOTE. If a date is given it must
+// be in parentheses. Keep in mind, if you want the person to show
+// up in a GEDCOM tree, don't do this - make the simple person block.
 
 Patrick Doe [patrick_doe]
   sex: M
@@ -234,11 +238,3 @@ Thomas Doe [thomas_doe]
 // An unmarried partnership (no m: line, just children).
 [isaac_doe] + [margaret_doe]
   > [sarah_doe]
-
-
-// --- sex: ? (unknown sex) ---
-
-Pat Doe [pat_doe]
-  sex: ?
-  b: 1900
-  note: Name appears in a ledger with no other identifying information.
