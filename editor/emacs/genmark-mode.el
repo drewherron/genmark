@@ -80,7 +80,7 @@
 (defvar genmark-person-field-tags
   '("aka" "sex" "b" "d" "chr" "bap" "bur" "crm"
     "imm" "emi" "nat" "res" "cen" "occ" "mil" "evt"
-    "m" "div" "parents" "maybe" "note" "src")
+    "m" "div" "parents" "maybe" "todo" "note" "src")
   "Person-level field tags in Genmark.")
 
 (defvar genmark-source-field-tags
