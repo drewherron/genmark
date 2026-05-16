@@ -189,7 +189,7 @@ Alice Doe [alice_doe]
 A single example using most available fields:
 
 ```
-// My great-granfather
+// My great-grandfather
 John Arthur Doe Sr. [john_doe]
   aka: Jack Doe
   sex: M
